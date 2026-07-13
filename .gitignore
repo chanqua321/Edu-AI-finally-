@@ -9,8 +9,8 @@
 *.sln.docstates
 
 # Build outputs
-**/bin/
-**/obj/
+!**/bin/
+!**/obj/
 **/TestResults/
 **/*.log
 

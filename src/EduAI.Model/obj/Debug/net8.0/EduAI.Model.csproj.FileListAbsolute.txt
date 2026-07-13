@@ -1,0 +1,15 @@
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\bin\Debug\net8.0\EduAI.Model.deps.json
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\bin\Debug\net8.0\EduAI.Model.runtimeconfig.json
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\bin\Debug\net8.0\EduAI.Model.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\bin\Debug\net8.0\EduAI.Model.pdb
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.csproj.AssemblyReference.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.AssemblyInfoInputs.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.AssemblyInfo.cs
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.csproj.CoreCompileInputs.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.sourcelink.json
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\refint\EduAI.Model.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.pdb
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\EduAI.Model.genruntimeconfig.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.Model\obj\Debug\net8.0\ref\EduAI.Model.dll
