@@ -26,3 +26,8 @@
 # OS
 Thumbs.db
 Desktop.ini
+
+# Local team split packages (send via Zalo, do not push)
+chia-viec-4-nguoi/
+gui-zalo-nhom/
+
