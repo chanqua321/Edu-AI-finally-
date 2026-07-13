@@ -1,6 +1,6 @@
 .vs/
-**/.idea/
-**/.vscode/
+!**/.idea/
+!**/.vscode/
 
 # User-specific
 *.user
@@ -9,8 +9,8 @@
 *.sln.docstates
 
 # Build outputs
-**/bin/
-**/obj/
+!**/bin/
+!**/obj/
 **/TestResults/
 **/*.log
 
@@ -26,6 +26,12 @@
 # OS
 Thumbs.db
 Desktop.ini
+
+# ── Environment / Secrets ──────────────────────────
+.env
+.env.local
+.env.*.local
+*.env
 
 # Local team split packages (send via Zalo, do not push)
 chia-viec-4-nguoi/
