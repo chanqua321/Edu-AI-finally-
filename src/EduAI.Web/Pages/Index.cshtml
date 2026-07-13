@@ -1,0 +1,75 @@
+@page
+@model IndexModel
+@{ ViewData["Title"] = "Trang chủ"; }
+
+<div class="hero-section">
+    <h1 class="hero-title">EduAI</h1>
+    <p class="hero-lead">Nền tảng học tập thông minh — tải tài liệu, chatbot theo môn, quản lý phân quyền.</p>
+    @if (!(User.Identity?.IsAuthenticated ?? false))
+    {
+        <a asp-page="/Account/Login" class="btn btn-primary btn-lg px-4">Đăng nhập</a>
+    }
+</div>
+
+@if (User.IsInRole(Roles.Admin))
+{
+    <div class="dash-grid mb-4">
+        <a asp-page="/Users/Index" class="dash-card">
+            <div class="dash-card-icon">&#9786;</div>
+            <h5>Người dùng</h5>
+            <p>Quản lý tài khoản</p>
+        </a>
+        <a asp-page="/Subjects/Index" class="dash-card">
+            <div class="dash-card-icon">&#128218;</div>
+            <h5>Môn học</h5>
+            <p>Môn học & gán giáo viên</p>
+        </a>
+        <a asp-page="/Chunks/Index" class="dash-card">
+            <div class="dash-card-icon">&#128196;</div>
+            <h5>Đoạn văn</h5>
+            <p>Xem đoạn văn đã lập chỉ mục</p>
+        </a>
+        <a asp-page="/AuditLogs/Index" class="dash-card">
+            <div class="dash-card-icon">&#128270;</div>
+            <h5>Nhật ký</h5>
+            <p>Nhật ký hệ thống</p>
+        </a>
+    </div>
+}
+
+@if (User.IsInRole(Roles.Teacher))
+{
+    <div class="dash-grid">
+        <a asp-page="/Documents/Create" class="dash-card featured">
+            <div class="dash-card-icon">&#8682;</div>
+            <h5>Tải tài liệu</h5>
+            <p>Chọn môn, chương, file — một màn hình</p>
+        </a>
+        <a asp-page="/Subjects/Index" class="dash-card">
+            <div class="dash-card-icon">&#128218;</div>
+            <h5>Môn học</h5>
+            <p>Xem môn được gán</p>
+        </a>
+        <a asp-page="/Chunks/Index" class="dash-card">
+            <div class="dash-card-icon">&#128196;</div>
+            <h5>Đoạn văn</h5>
+            <p>Kiểm tra nội dung đã lập chỉ mục</p>
+        </a>
+    </div>
+}
+
+@if (User.IsInRole(Roles.Student))
+{
+    <div class="dash-grid justify-content-center" style="max-width: 720px; margin: 0 auto;">
+        <a asp-page="/Chat/Index" class="dash-card featured">
+            <div class="dash-card-icon">&#128172;</div>
+            <h5>Chatbot</h5>
+            <p>Hỏi đáp theo tài liệu môn học</p>
+        </a>
+        <a asp-page="/Subjects/Index" class="dash-card">
+            <div class="dash-card-icon">&#128218;</div>
+            <h5>Môn học</h5>
+            <p>Tải tài liệu & bắt đầu chat</p>
+        </a>
+    </div>
+}

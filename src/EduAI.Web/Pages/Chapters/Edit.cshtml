@@ -1,0 +1,18 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Chapters.EditModel
+@{ ViewData["Title"] = "Sửa chương"; }
+<h2>Sửa chương</h2>
+<form method="post">
+    <input type="hidden" asp-for="Input.Id" />
+    <input type="hidden" asp-for="Input.SubjectId" />
+    <div class="mb-3">
+        <label asp-for="Input.Name" class="form-label"></label>
+        <input asp-for="Input.Name" class="form-control" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.OrderNumber" class="form-label"></label>
+        <input asp-for="Input.OrderNumber" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <button formaction="?handler=Delete" type="submit" class="btn btn-danger" onclick="return confirm('Xóa chương này?')">Xóa</button>
+</form>

@@ -1,0 +1,83 @@
+@page
+@model EduAI.Web.Pages.Chat.IndexModel
+@using System.Text.Json
+@using EduAI.Model.Constants
+@{
+    ViewData["Title"] = "Chatbot";
+    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">RAG Chatbot</h1>
+        <p class="page-subtitle">Hỏi đáp theo tài liệu — chỉ trong phạm vi môn học của phiên chat.</p>
+    </div>
+    <a asp-page="Create" class="btn btn-primary">+ Phiên chat mới</a>
+</div>
+
+<div id="subject-realtime-toast" class="alert alert-info d-none mb-3" role="alert"></div>
+
+<div id="chat-subjects-section" class="@(Model.ViewModel.Subjects.Count > 0 ? "" : "d-none")">
+    <h6 class="text-muted text-uppercase mb-3" style="font-size:0.72rem; letter-spacing:0.08em;">Bắt đầu nhanh</h6>
+    <div id="chat-subjects-grid" class="dash-grid mb-4">
+        @foreach (var subject in Model.ViewModel.Subjects)
+        {
+            <a asp-page="Create" asp-route-subjectId="@subject.Id" class="dash-card" data-subject-id="@subject.Id">
+                <div class="dash-card-icon">&#128172;</div>
+                <h5>@subject.Name</h5>
+                <p>@subject.DocumentCount tài liệu sẵn sàng</p>
+            </a>
+        }
+    </div>
+</div>
+
+<div id="chat-subjects-empty" class="alert alert-secondary @(Model.ViewModel.Subjects.Count > 0 ? "d-none" : "")">
+    Chưa có môn học sẵn sàng chat. Khi giáo viên tải lên và xử lý tài liệu xong, môn sẽ hiện ở đây tự động.
+</div>
+
+@if (Model.ViewModel.Sessions.Count == 0)
+{
+    <div class="alert alert-secondary">Chưa có phiên chat. Chọn môn ở trên để bắt đầu.</div>
+}
+else
+{
+    <div class="panel-card">
+        <div class="panel-card-header">Phiên chat gần đây</div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr><th>Tiêu đề</th><th>Môn</th><th>Tạo lúc</th><th></th></tr>
+                </thead>
+                <tbody>
+                @foreach (var s in Model.ViewModel.Sessions)
+                {
+                    <tr>
+                        <td><strong>@s.Title</strong></td>
+                        <td>@s.SubjectName</td>
+                        <td class="text-muted">@s.CreatedAt.ToString("g")</td>
+                        <td class="text-nowrap">
+                            <a asp-page="Details" asp-route-id="@s.Id" class="btn btn-sm btn-primary">Mở</a>
+                            <a asp-page="Edit" asp-route-id="@s.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/subject-realtime.js" asp-append-version="true"></script>
+    <script>
+        initSubjectRealtime(@Html.Raw(JsonSerializer.Serialize(new {
+            hubUrl = Url.Content("~/hubs/subjects"),
+            role = Roles.Student,
+            userId,
+            urls = new {
+                chatCreate = Url.Page("/Chat/Create", new { subjectId = 0 }),
+                index = Url.Page("/Subjects/Index")
+            }
+        })));
+    </script>
+}

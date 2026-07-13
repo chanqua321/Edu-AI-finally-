@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/EduAI.BusinessLogic/EduAI.BusinessLogic.csproj" />
+    <Project Path="src/EduAI.Model/EduAI.Model.csproj" />
+    <Project Path="src/EduAI.Web/EduAI.Web.csproj" />
+  </Folder>
+</Solution>

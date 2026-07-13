@@ -1,0 +1,46 @@
+@page
+@model EduAI.Web.Pages.Chat.CreateModel
+@{ ViewData["Title"] = "Phiên chat mới"; }
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Bắt đầu chat</h1>
+        <p class="page-subtitle">Tên phiên tự đặt theo môn (vd. PRN222). Đổi tên sau tại cài đặt.</p>
+    </div>
+    <a asp-page="Index" class="btn btn-outline-secondary">Hủy</a>
+</div>
+
+@if (Model.NoSubjectsAvailable)
+{
+    <div class="alert alert-warning">Chưa có môn nào có tài liệu. Vui lòng đợi giáo viên upload.</div>
+}
+else
+{
+    <div class="panel-card" style="max-width: 520px;">
+        <div class="panel-card-body">
+            @if (Model.SelectedSubjectName != null)
+            {
+                <div class="alert alert-info py-2 mb-3">
+                    <strong>Môn:</strong> @Model.SelectedSubjectName
+                </div>
+            }
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                @if (Model.ShowSubjectPicker)
+                {
+                    <div class="mb-3">
+                        <label asp-for="Input.SubjectId" class="form-label">Chọn môn</label>
+                        <select asp-for="Input.SubjectId" asp-items="Model.SubjectOptions" class="form-select"></select>
+                    </div>
+                }
+                else
+                {
+                    <input type="hidden" asp-for="Input.SubjectId" />
+                }
+                <button type="submit" class="btn btn-primary w-100">Bắt đầu chat</button>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

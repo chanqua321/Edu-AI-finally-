@@ -1,0 +1,24 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.ChatMessages.DetailsModel
+@{ ViewData["Title"] = "Chi tiết tin nhắn"; }
+
+<h2 class="page-title">Tin nhắn #@Model.ViewModel.Id</h2>
+<dl class="row">
+    <dt class="col-sm-2">Role</dt><dd class="col-sm-10">@Model.ViewModel.Role</dd>
+    <dt class="col-sm-2">Citations</dt><dd class="col-sm-10">@(Model.ViewModel.Citations ?? "—")</dd>
+</dl>
+<div class="panel-card mb-3">
+    <div class="panel-card-body"><pre class="mb-0 chat-message-pre">@Model.ViewModel.Content</pre></div>
+</div>
+@if (Model.SessionId.HasValue)
+{
+    <a asp-page="/ChatSessions/Index" asp-route-sessionId="@Model.SessionId" class="btn btn-secondary">← Quay lại Chat</a>
+}
+else if (Model.ViewModel.SessionId > 0)
+{
+    <a asp-page="/ChatSessions/Index" asp-route-sessionId="@Model.ViewModel.SessionId" class="btn btn-secondary">← Quay lại Chat</a>
+}
+else
+{
+    <a asp-page="/ChatSessions/Index" class="btn btn-secondary">← Quay lại Chat</a>
+}

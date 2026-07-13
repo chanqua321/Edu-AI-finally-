@@ -1,0 +1,740 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Subjects.DetailsModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Chi tiết môn";
+    var s = Model.ViewModel.Subject!;
+    var role = User.IsInRole(Roles.Admin) ? Roles.Admin
+        : User.IsInRole(Roles.Teacher) ? Roles.Teacher
+        : Roles.Student;
+    var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title" id="subject-page-title">@s.Name</h1>
+        <p class="page-subtitle" id="subject-page-subtitle">
+            @(s.TeacherName != null ? $"GV: {s.TeacherName}" : "Chưa gán giáo viên")
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-start">
+        @if (User.IsInRole(Roles.Admin))
+        {
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#assignTeacherModal">
+                @(string.IsNullOrEmpty(s.TeacherId) ? "Gán giáo viên" : "Đổi giáo viên")
+            </button>
+        }
+        <a asp-page="Index" class="btn btn-outline-secondary">← Danh sách</a>
+    </div>
+</div>
+
+<div id="subject-realtime-toast" class="alert alert-info d-none mb-3" role="alert"></div>
+
+@if (TempData["SubjectActionError"] is string subjectError)
+{
+    <div class="alert alert-danger">@subjectError</div>
+}
+@if (TempData["SubjectActionSuccess"] is string subjectSuccess)
+{
+    <div class="alert alert-success">@subjectSuccess</div>
+}
+
+@if (User.IsInRole(Roles.Admin) && !s.IsActive)
+{
+    <div class="alert alert-warning">Môn học này đang bị ẩn — giáo viên và sinh viên không thấy trong danh sách.</div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div id="subject-details-content">
+
+<div class="panel-card mb-4">
+    <div class="panel-card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3 text-muted">Mô tả</dt>
+            <dd class="col-sm-9" id="subject-description">@(string.IsNullOrWhiteSpace(s.Description) ? "—" : s.Description)</dd>
+            <dt class="col-sm-3 text-muted">Tài liệu</dt>
+            <dd class="col-sm-9"><span class="badge badge-doc" id="subject-doc-count">@s.DocumentCount</span></dd>
+            <dt class="col-sm-3 text-muted">Tạo lúc</dt>
+            <dd class="col-sm-9">@s.CreatedAt.ToString("g")</dd>
+        </dl>
+    </div>
+</div>
+
+@if (Model.CanViewCourseStructure)
+{
+    <div class="panel-card mb-4">
+        <div class="panel-card-header d-flex align-items-center justify-content-between">
+            <div>
+                <strong>Nội dung khóa học</strong>
+                <span class="text-muted ms-2">(@Model.Chapters.Count chương)</span>
+                @if (!Model.CanManageChapters)
+                {
+                    <span class="badge bg-light text-muted border ms-1">Chỉ xem</span>
+                }
+            </div>
+            @if (Model.CanManageChapters)
+            {
+            <button type="button" class="btn btn-sm btn-outline-primary lms-toggle-add" data-target="#add-chapter-form">
+                + Thêm chương
+            </button>
+            }
+        </div>
+        <div class="panel-card-body">
+            @if (TempData["Error"] is string chapterError)
+            {
+                <div class="alert alert-danger">@chapterError</div>
+            }
+
+            @if (Model.CanManageChapters)
+            {
+            <div id="add-chapter-form" class="lms-add-form d-none mb-3">
+                <form method="post" asp-page-handler="AddChapter" class="d-flex gap-2">
+                    <input type="hidden" name="id" value="@s.Id" />
+                    <input type="text" name="chapterName" class="form-control form-control-sm" placeholder="Tên chương mới (vd: Chương 1 - Tổng quan)" maxlength="200" required />
+                    <button type="submit" class="btn btn-sm btn-primary text-nowrap">Tạo</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary lms-toggle-add" data-target="#add-chapter-form">Hủy</button>
+                </form>
+            </div>
+            }
+
+            @if (Model.Chapters.Count == 0)
+            {
+                <p class="text-muted mb-0">Chưa có chương nào.@if (Model.CanManageChapters) { <text> Bấm <strong>+ Thêm chương</strong> để bắt đầu.</text> }</p>
+            }
+            else
+            {
+                var orderedChapters = Model.Chapters.OrderBy(c => c.OrderNumber).ThenBy(c => c.Id).ToList();
+                <div class="accordion lms-accordion" id="chaptersAccordion">
+                    @for (var i = 0; i < orderedChapters.Count; i++)
+                    {
+                        var c = orderedChapters[i];
+                        var chapterLessons = Model.Lessons
+                            .Where(l => l.ChapterId == c.Id)
+                            .OrderBy(l => l.OrderNumber).ThenBy(l => l.Id)
+                            .ToList();
+                        var collapseId = $"chapter-collapse-{c.Id}";
+                        var headingId = $"chapter-heading-{c.Id}";
+                        var addLessonFormId = $"add-lesson-{c.Id}";
+                        var isSingleLesson = chapterLessons.Count == 1;
+                        var soleLesson = isSingleLesson ? chapterLessons[0] : null;
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="@headingId">
+                                <button class="accordion-button collapsed" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#@collapseId"
+                                        aria-expanded="false"
+                                        aria-controls="@collapseId">
+                                    <span class="lms-chapter-title">
+                                        <span class="lms-chapter-num">@c.OrderNumber</span>
+                                        <span class="fw-semibold">@c.Name</span>
+                                    </span>
+                                    <span class="lms-chapter-meta">@(chapterLessons.Count == 0 ? $"{c.DocumentCount} tài liệu" : isSingleLesson ? $"{c.DocumentCount} tài liệu" : $"{chapterLessons.Count} bài · {c.DocumentCount} tài liệu")</span>
+                                </button>
+                            </h2>
+                            <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headingId" data-bs-parent="#chaptersAccordion">
+                                <div class="accordion-body lms-accordion-body">
+                                    @if (Model.CanManageChapters)
+                                    {
+                                    <div class="d-flex justify-content-end mb-2">
+                                        <div class="dropdown">
+                                            <button class="btn btn-sm btn-light lms-kebab" type="button"
+                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Tùy chọn chương">⋯</button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                @if (isSingleLesson && soleLesson != null)
+                                                {
+                                                    <li>
+                                                        <a class="dropdown-item"
+                                                           asp-page="/Documents/Create"
+                                                           asp-route-subjectId="@s.Id"
+                                                           asp-route-chapterId="@c.Id"
+                                                           asp-route-lessonId="@soleLesson.Id">Tải lên tài liệu</a>
+                                                    </li>
+                                                    <li><hr class="dropdown-divider" /></li>
+                                                }
+                                                <li>
+                                                    <button type="button" class="dropdown-item js-rename-chapter"
+                                                            data-chapter-id="@c.Id" data-chapter-name="@c.Name">
+                                                        Đổi tên chương
+                                                    </button>
+                                                </li>
+                                                <li><hr class="dropdown-divider" /></li>
+                                                <li>
+                                                    <form method="post" asp-page-handler="MoveChapter">
+                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                        <input type="hidden" name="chapterId" value="@c.Id" />
+                                                        <input type="hidden" name="direction" value="up" />
+                                                        <button type="submit" class="dropdown-item" @(i == 0 ? "disabled" : "")>Di chuyển lên</button>
+                                                    </form>
+                                                </li>
+                                                <li>
+                                                    <form method="post" asp-page-handler="MoveChapter">
+                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                        <input type="hidden" name="chapterId" value="@c.Id" />
+                                                        <input type="hidden" name="direction" value="down" />
+                                                        <button type="submit" class="dropdown-item" @(i == orderedChapters.Count - 1 ? "disabled" : "")>Di chuyển xuống</button>
+                                                    </form>
+                                                </li>
+                                                <li><hr class="dropdown-divider" /></li>
+                                                <li>
+                                                    <form method="post" asp-page-handler="DeleteChapter"
+                                                          onsubmit="return confirm('Xóa chương này sẽ xóa toàn bộ bài và tài liệu bên trong. Tiếp tục?');">
+                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                        <input type="hidden" name="chapterId" value="@c.Id" />
+                                                        <button type="submit" class="dropdown-item text-danger">Xóa chương</button>
+                                                    </form>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    }
+
+                                    @if (chapterLessons.Count == 0)
+                                    {
+                                        <p class="text-muted small mb-2">Chưa có bài trong chương này.</p>
+                                    }
+                                    else if (isSingleLesson && soleLesson != null)
+                                    {
+                                        var soleLessonDocs = Model.Documents
+                                            .Where(d => d.LessonId == soleLesson.Id)
+                                            .OrderBy(d => d.FileName)
+                                            .ToList();
+                                        if (soleLessonDocs.Count == 0)
+                                        {
+                                            <p class="text-muted small mb-2">Chưa có tài liệu trong chương này.</p>
+                                        }
+                                        else
+                                        {
+                                            <ul class="lms-doc-list lms-doc-list-flat list-unstyled mb-2">
+                                                @foreach (var doc in soleLessonDocs)
+                                                {
+                                                    var ext = System.IO.Path.GetExtension(doc.FileName ?? string.Empty).ToLowerInvariant();
+                                                    var icon = ext switch
+                                                    {
+                                                        ".pdf" => "PDF",
+                                                        ".doc" or ".docx" => "DOC",
+                                                        ".ppt" or ".pptx" => "PPT",
+                                                        ".xls" or ".xlsx" => "XLS",
+                                                        ".txt" => "TXT",
+                                                        _ => "FILE"
+                                                    };
+                                                    <li class="lms-doc-row">
+                                                        <span class="drive-icon drive-icon-sm">@icon</span>
+                                                        <div class="lms-doc-info">
+                                                            <a asp-page="/Documents/Details" asp-route-id="@doc.Id" class="lms-doc-name">@doc.FileName</a>
+                                                            <span class="lms-doc-meta">@doc.CategoryLabel · @(doc.IndexStatus == "Indexed" ? "đã index" : doc.IndexStatus == "Processing" ? "đang xử lý" : doc.IndexStatus == "Failed" ? "lỗi xử lý" : "chờ xử lý")</span>
+                                                        </div>
+                                                        <div class="d-flex gap-1 align-items-center flex-shrink-0">
+                                                            @if (!User.IsInRole(Roles.Student))
+                                                            {
+                                                                <a asp-page="/Documents/Details" asp-route-id="@doc.Id" class="btn btn-sm btn-link text-muted">Chi tiết</a>
+                                                            }
+                                                            @if (Model.CanManageChapters)
+                                                            {
+                                                                <a asp-page="/Documents/Edit" asp-route-id="@doc.Id" class="btn btn-sm btn-link text-muted">Sửa</a>
+                                                                @if (doc.IndexStatus == "Failed" || doc.IndexStatus == "Pending")
+                                                                {
+                                                                    <form method="post" asp-page-handler="ReindexDocument" class="d-inline">
+                                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                                        <input type="hidden" name="documentId" value="@doc.Id" />
+                                                                        <button type="submit" class="btn btn-sm btn-link text-warning p-0">Xử lý lại</button>
+                                                                    </form>
+                                                                }
+                                                            }
+                                                        </div>
+                                                    </li>
+                                                }
+                                            </ul>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <ul class="lms-lesson-list list-unstyled mb-2">
+                                            @for (var j = 0; j < chapterLessons.Count; j++)
+                                            {
+                                                var l = chapterLessons[j];
+                                                var lessonDocs = Model.Documents
+                                                    .Where(d => d.LessonId == l.Id)
+                                                    .OrderBy(d => d.FileName)
+                                                    .ToList();
+                                                <li class="lms-lesson-block">
+                                                    <div class="lms-lesson-row">
+                                                        <div class="lms-lesson-main">
+                                                            <span class="lms-lesson-title">@l.Name</span>
+                                                            <span class="lms-lesson-meta">@lessonDocs.Count tài liệu</span>
+                                                        </div>
+                                                        @if (Model.CanManageChapters)
+                                                        {
+                                                        <div class="dropdown">
+                                                            <button class="btn btn-sm btn-light lms-kebab" type="button"
+                                                                    data-bs-toggle="dropdown" aria-expanded="false" title="Tùy chọn">⋯</button>
+                                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                                                <li>
+                                                                    <a class="dropdown-item"
+                                                                       asp-page="/Documents/Create"
+                                                                       asp-route-subjectId="@s.Id"
+                                                                       asp-route-chapterId="@c.Id"
+                                                                       asp-route-lessonId="@l.Id">Tải lên tài liệu</a>
+                                                                </li>
+                                                                <li>
+                                                                    <button type="button" class="dropdown-item js-rename-lesson"
+                                                                            data-lesson-id="@l.Id" data-lesson-name="@l.Name">
+                                                                        Đổi tên bài
+                                                                    </button>
+                                                                </li>
+                                                                <li><hr class="dropdown-divider" /></li>
+                                                                <li>
+                                                                    <form method="post" asp-page-handler="MoveLesson">
+                                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                                        <input type="hidden" name="chapterId" value="@c.Id" />
+                                                                        <input type="hidden" name="lessonId" value="@l.Id" />
+                                                                        <input type="hidden" name="direction" value="up" />
+                                                                        <button type="submit" class="dropdown-item" @(j == 0 ? "disabled" : "")>Di chuyển lên</button>
+                                                                    </form>
+                                                                </li>
+                                                                <li>
+                                                                    <form method="post" asp-page-handler="MoveLesson">
+                                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                                        <input type="hidden" name="chapterId" value="@c.Id" />
+                                                                        <input type="hidden" name="lessonId" value="@l.Id" />
+                                                                        <input type="hidden" name="direction" value="down" />
+                                                                        <button type="submit" class="dropdown-item" @(j == chapterLessons.Count - 1 ? "disabled" : "")>Di chuyển xuống</button>
+                                                                    </form>
+                                                                </li>
+                                                                <li><hr class="dropdown-divider" /></li>
+                                                                <li>
+                                                                    <form method="post" asp-page-handler="DeleteLesson"
+                                                                          onsubmit="return confirm('Xóa bài này sẽ xóa toàn bộ tài liệu bên trong. Tiếp tục?');">
+                                                                        <input type="hidden" name="id" value="@s.Id" />
+                                                                        <input type="hidden" name="lessonId" value="@l.Id" />
+                                                                        <button type="submit" class="dropdown-item text-danger">Xóa bài</button>
+                                                                    </form>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                        }
+                                                    </div>
+                                                    @if (lessonDocs.Count > 0)
+                                                    {
+                                                        <ul class="lms-doc-list list-unstyled">
+                                                            @foreach (var doc in lessonDocs)
+                                                            {
+                                                                var ext = System.IO.Path.GetExtension(doc.FileName ?? string.Empty).ToLowerInvariant();
+                                                                var icon = ext switch
+                                                                {
+                                                                    ".pdf" => "PDF",
+                                                                    ".doc" or ".docx" => "DOC",
+                                                                    ".ppt" or ".pptx" => "PPT",
+                                                                    ".xls" or ".xlsx" => "XLS",
+                                                                    ".txt" => "TXT",
+                                                                    _ => "FILE"
+                                                                };
+                                                                <li class="lms-doc-row">
+                                                                    <span class="drive-icon drive-icon-sm">@icon</span>
+                                                                    <div class="lms-doc-info">
+                                                                        <a asp-page="/Documents/Details" asp-route-id="@doc.Id" class="lms-doc-name">@doc.FileName</a>
+                                                                        <span class="lms-doc-meta">@doc.CategoryLabel · @(doc.IndexStatus == "Indexed" ? "đã index" : doc.IndexStatus == "Processing" ? "đang xử lý" : doc.IndexStatus == "Failed" ? "lỗi xử lý" : "chờ xử lý")</span>
+                                                                    </div>
+                                                                    <div class="d-flex gap-1 align-items-center flex-shrink-0">
+                                                                        @if (!User.IsInRole(Roles.Student))
+                                                                        {
+                                                                            <a asp-page="/Documents/Details" asp-route-id="@doc.Id" class="btn btn-sm btn-link text-muted">Chi tiết</a>
+                                                                        }
+                                                                        @if (Model.CanManageChapters)
+                                                                        {
+                                                                            <a asp-page="/Documents/Edit" asp-route-id="@doc.Id" class="btn btn-sm btn-link text-muted">Sửa</a>
+                                                                            @if (doc.IndexStatus == "Failed" || doc.IndexStatus == "Pending")
+                                                                            {
+                                                                                <form method="post" asp-page-handler="ReindexDocument" class="d-inline">
+                                                                                    <input type="hidden" name="id" value="@s.Id" />
+                                                                                    <input type="hidden" name="documentId" value="@doc.Id" />
+                                                                                    <button type="submit" class="btn btn-sm btn-link text-warning p-0">Xử lý lại</button>
+                                                                                </form>
+                                                                            }
+                                                                        }
+                                                                    </div>
+                                                                </li>
+                                                            }
+                                                        </ul>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+
+                                    @if (Model.CanManageChapters && chapterLessons.Count > 0)
+                                    {
+                                    <button type="button" class="btn btn-link btn-sm text-decoration-none ps-0 lms-toggle-add"
+                                            data-target="#@addLessonFormId">@(isSingleLesson ? "+ Thêm bài học" : "+ Thêm bài")</button>
+                                    <div id="@addLessonFormId" class="lms-add-form d-none mt-2">
+                                        <form method="post" asp-page-handler="AddLesson" class="d-flex gap-2">
+                                            <input type="hidden" name="id" value="@s.Id" />
+                                            <input type="hidden" name="chapterId" value="@c.Id" />
+                                            <input type="text" name="lessonName" class="form-control form-control-sm"
+                                                   placeholder="Tên bài mới (vd: Bài 2 - SELECT)" maxlength="200" required />
+                                            <button type="submit" class="btn btn-sm btn-primary text-nowrap">Tạo</button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary lms-toggle-add"
+                                                    data-target="#@addLessonFormId">Hủy</button>
+                                        </form>
+                                    </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.CanManageChapters)
+    {
+    <div class="modal fade" id="renameChapterModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="RenameChapter">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Đổi tên chương</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" value="@s.Id" />
+                        <input type="hidden" name="chapterId" id="rename-chapter-id" value="" />
+                        <label for="rename-chapter-name" class="form-label">Tên chương</label>
+                        <input type="text" name="chapterName" id="rename-chapter-name" class="form-control" maxlength="200" required />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="renameLessonModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="RenameLesson">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Đổi tên bài</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" value="@s.Id" />
+                        <input type="hidden" name="lessonId" id="rename-lesson-id" value="" />
+                        <label for="rename-lesson-name" class="form-label">Tên bài</label>
+                        <input type="text" name="lessonName" id="rename-lesson-name" class="form-control" maxlength="200" required />
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    }
+}
+
+@if (!Model.CanViewCourseStructure)
+{
+<div class="panel-card mb-4">
+    <div class="panel-card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <div>
+            <strong>Tài liệu</strong>
+            <span class="text-muted ms-2">(@Model.Documents.Count)</span>
+        </div>
+    </div>
+    <div class="panel-card-body p-0">
+        @if (Model.Documents.Count == 0)
+        {
+            <div class="p-3 text-muted">Chưa có tài liệu nào.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 drive-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 44px;"></th>
+                            <th>Tên tài liệu</th>
+                            <th>Chương</th>
+                            <th>Bài</th>
+                            <th>Phân loại</th>
+                            <th>Giảng viên</th>
+                            <th>Trạng thái</th>
+                            @if (!User.IsInRole(Roles.Student))
+                            {
+                                <th>chunk</th>
+                            }
+                            <th style="width: 200px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var doc in Model.Documents)
+                        {
+                            var isExpanded = Model.ExpandedDocumentId == doc.Id;
+                            var ext = System.IO.Path.GetExtension(doc.FileName ?? string.Empty).ToLowerInvariant();
+                            var icon = ext switch
+                            {
+                                ".pdf" => "PDF",
+                                ".doc" or ".docx" => "DOC",
+                                ".ppt" or ".pptx" => "PPT",
+                                ".xls" or ".xlsx" => "XLS",
+                                ".txt" => "TXT",
+                                _ => "FILE"
+                            };
+
+                            <tr>
+                                <td class="text-center">
+                                    <span class="drive-icon">@icon</span>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">@doc.FileName</div>
+                                    <div class="text-muted small">Tải lên: @doc.CreatedAt.ToLocalTime().ToString("g")</div>
+                                </td>
+                                <td class="text-muted">@doc.ChapterName</td>
+                                <td class="text-muted">@doc.LessonName</td>
+                                <td><span class="badge bg-light text-dark border">@doc.CategoryLabel</span></td>
+                                <td class="text-muted">@(string.IsNullOrWhiteSpace(doc.UploadedByName) ? "—" : doc.UploadedByName)</td>
+                                <td>
+                                    <partial name="_DocumentIndexStatus" model="doc" />
+                                </td>
+                                @if (!User.IsInRole(Roles.Student))
+                                {
+                                    <td>
+                                        @if (doc.ChunkCount > 0)
+                                        {
+                                            if (isExpanded)
+                                            {
+                                                <a asp-page="Details" asp-route-id="@s.Id" class="badge badge-chunk badge-chunk-link text-decoration-none">chunk @doc.ChunkCount ▲</a>
+                                            }
+                                            else
+                                            {
+                                                <a asp-page="Details" asp-route-id="@s.Id" asp-route-showChunks="@doc.Id" class="badge badge-chunk badge-chunk-link text-decoration-none">chunk @doc.ChunkCount ▼</a>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">chunk 0</span>
+                                        }
+                                    </td>
+                                }
+                                <td class="text-nowrap">
+                                    @if (!User.IsInRole(Roles.Student))
+                                    {
+                                        <a asp-page="/Documents/Details" asp-route-id="@doc.Id" class="btn btn-sm btn-outline-primary">Chi tiết</a>
+                                    }
+                                    @if (Model.CanManageChapters)
+                                    {
+                                        <a asp-page="/Documents/Edit" asp-route-id="@doc.Id" class="btn btn-sm btn-outline-secondary">Sửa</a>
+                                        @if (doc.IndexStatus == "Failed" || doc.IndexStatus == "Pending")
+                                        {
+                                            <form method="post" asp-page-handler="ReindexDocument" class="d-inline">
+                                                <input type="hidden" name="id" value="@s.Id" />
+                                                <input type="hidden" name="documentId" value="@doc.Id" />
+                                                <button type="submit" class="btn btn-sm btn-outline-warning">Xử lý lại</button>
+                                            </form>
+                                        }
+                                    }
+                                </td>
+                            </tr>
+                            @if (isExpanded && !User.IsInRole(Roles.Student))
+                            {
+                                <tr class="chunk-expand-row">
+                                    <td colspan="@(User.IsInRole(Roles.Student) ? 8 : 9)">
+                                        <div class="chunk-inline-panel">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong>chunk — @doc.FileName (@Model.ExpandedChunks.Count)</strong>
+                                                <a asp-page="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-secondary">Đóng</a>
+                                            </div>
+                                            @{
+                                                var chunkAccordionId = "subject-doc-chunks-" + doc.Id;
+                                            }
+                                            <partial name="_ChunkAccordion" model="(Model.ExpandedChunks, chunkAccordionId, Model.ShowEmbedding)" />
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+}
+
+@if (User.IsInRole(Roles.Admin))
+{
+    <div class="panel-card mb-4">
+        <div class="panel-card-header d-flex align-items-center justify-content-between">
+            <div>
+                <strong>Lịch sử phân công giáo viên</strong>
+                <span class="text-muted ms-2">(@Model.AssignmentHistory.Count)</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignTeacherModal">
+                @(string.IsNullOrEmpty(s.TeacherId) ? "Gán giáo viên" : "Đổi giáo viên")
+            </button>
+        </div>
+        <div class="panel-card-body p-0">
+            @if (Model.AssignmentHistory.Count == 0)
+            {
+                <div class="p-3 text-muted">Chưa có phân công nào.</div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Giáo viên</th>
+                                <th>Bắt đầu</th>
+                                <th>Kết thúc</th>
+                                <th>Trạng thái</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var a in Model.AssignmentHistory)
+                        {
+                            <tr>
+                                <td>@a.TeacherName</td>
+                                <td class="text-muted">@a.StartDate.ToLocalTime().ToString("g")</td>
+                                <td class="text-muted">@(a.EndDate.HasValue ? a.EndDate.Value.ToLocalTime().ToString("g") : "—")</td>
+                                <td>
+                                    @if (a.IsCurrent)
+                                    {
+                                        <span class="badge bg-success">Đang phụ trách</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Đã kết thúc</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+</div>
+
+@if (User.IsInRole(Roles.Admin))
+{
+    <div class="modal fade" id="assignTeacherModal" tabindex="-1" aria-labelledby="assignTeacherModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="AssignTeacher">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="assignTeacherModalLabel">Gán / Đổi giáo viên</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted mb-3">Môn: <strong>@s.Name</strong></p>
+                        <input type="hidden" name="id" value="@s.Id" />
+                        <label for="assignTeacherSelect" class="form-label">Chọn giáo viên</label>
+                        <select name="teacherId" id="assignTeacherSelect" class="form-select" asp-items="Model.TeacherOptions">
+                            <option value="">-- Để trống (gỡ giáo viên) --</option>
+                        </select>
+                        <div class="form-text">Có thể đổi sang giáo viên khác hoặc để trống. Một giáo viên có thể dạy nhiều môn.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<div id="subject-student-actions" class="d-flex flex-wrap gap-2">
+    @if (User.IsInRole(Roles.Student) && s.HasMaterials)
+    {
+        <a asp-page="/Study/Materials" asp-route-subjectId="@s.Id" class="btn btn-success">Tải tài liệu</a>
+        <a asp-page="/Chat/Create" asp-route-subjectId="@s.Id" class="btn btn-primary">Chat</a>
+    }
+    else if (User.IsInRole(Roles.Student))
+    {
+        <div class="alert alert-warning mb-0 w-100">Chưa có tài liệu cho môn này.</div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/js/subject-realtime.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const panel = document.querySelector('.chunk-expand-row .chunk-inline-panel');
+            if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            document.querySelectorAll('.lms-toggle-add').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const target = document.querySelector(btn.dataset.target);
+                    if (!target) return;
+                    target.classList.toggle('d-none');
+                    if (!target.classList.contains('d-none')) {
+                        const input = target.querySelector('input[type="text"]');
+                        if (input) input.focus();
+                    }
+                });
+            });
+
+            const chapterModal = document.getElementById('renameChapterModal');
+            const lessonModal = document.getElementById('renameLessonModal');
+            if (chapterModal) {
+                const bsChapterModal = new bootstrap.Modal(chapterModal);
+                document.querySelectorAll('.js-rename-chapter').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        document.getElementById('rename-chapter-id').value = btn.dataset.chapterId;
+                        document.getElementById('rename-chapter-name').value = btn.dataset.chapterName;
+                        bsChapterModal.show();
+                    });
+                });
+            }
+            if (lessonModal) {
+                const bsLessonModal = new bootstrap.Modal(lessonModal);
+                document.querySelectorAll('.js-rename-lesson').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        document.getElementById('rename-lesson-id').value = btn.dataset.lessonId;
+                        document.getElementById('rename-lesson-name').value = btn.dataset.lessonName;
+                        bsLessonModal.show();
+                    });
+                });
+            }
+        });
+        (function () {
+            var modalEl = document.getElementById('assignTeacherModal');
+            if (!modalEl) return;
+            var formEl = modalEl.querySelector('form');
+            var teacherSelect = document.getElementById('assignTeacherSelect');
+            var currentTeacherId = '@(s.TeacherId ?? "")';
+            if (formEl && currentTeacherId) {
+                formEl.addEventListener('submit', function (e) {
+                    if (teacherSelect && teacherSelect.value !== currentTeacherId) {
+                        if (!window.confirm('Bạn chắc chắn sẽ đổi giảng viên này không?')) {
+                            e.preventDefault();
+                        }
+                    }
+                });
+            }
+        })();
+        initSubjectRealtime(@Html.Raw(JsonSerializer.Serialize(new {
+            hubUrl = Url.Content("~/hubs/subjects"),
+            role,
+            userId,
+            currentSubjectId = s.Id,
+            urls = new {
+                index = Url.Page("/Subjects/Index")
+            }
+        })));
+    </script>
+}

@@ -1,0 +1,168 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="EduAI">
+<title>Đặc tả hệ thống EduAI</title>
+<!--[if gte mso 9]>
+xml<w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument>
+<![endif]-->
+<style>
+@page { size: A4; margin: 2cm; }
+body { font-family: "Times New Roman", serif; font-size: 12pt; color: #000; }
+h1 { font-size: 18pt; text-align: center; color: #0f4c81; }
+h2 { font-size: 14pt; color: #0f4c81; margin-top: 18pt; border-bottom: 1px solid #ccc; padding-bottom: 4pt; }
+p.meta { text-align: center; font-size: 11pt; color: #444; }
+table { border-collapse: collapse; width: 100%; margin: 10pt 0 16pt 0; }
+th { background: #dbeafe; color: #1e3a5f; font-weight: bold; padding: 6pt 8pt; border: 1px solid #94a3b8; text-align: left; }
+td { padding: 6pt 8pt; border: 1px solid #94a3b8; vertical-align: top; }
+tr:nth-child(even) td { background: #f8fafc; }
+.note { font-size: 10pt; color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>ĐẶC TẢ HỆ THỐNG EDUAI</h1>
+<p class="meta"><b>Môn:</b> PRN222 — Assignment 2 &nbsp;|&nbsp; <b>Hệ thống:</b> EduAI — Chatbot RAG &amp; Quản lý tài liệu<br>
+<b>Phiên bản:</b> 1.0 &nbsp;|&nbsp; <b>Ngày cập nhật:</b> 19/06/2026</p>
+
+<h2>1. Mục tiêu hệ thống</h2>
+<table>
+<tr><th>STT</th><th>Mục tiêu</th><th>Mô tả</th></tr>
+<tr><td>1</td><td>Quản lý môn học</td><td>Tạo, sửa, ẩn/khôi phục môn; gán giáo viên phụ trách</td></tr>
+<tr><td>2</td><td>Quản lý tài liệu</td><td>Upload, index, xem, tải xuống tài liệu theo chương</td></tr>
+<tr><td>3</td><td>Chatbot RAG</td><td>Sinh viên hỏi đáp theo tài liệu môn học, trích nguồn khi độ liên quan đủ cao</td></tr>
+<tr><td>4</td><td>Phân quyền</td><td>Admin, Teacher, Student với quyền truy cập khác nhau</td></tr>
+<tr><td>5</td><td>Theo dõi hệ thống</td><td>Audit log các thao tác quan trọng</td></tr>
+<tr><td>6</td><td>Realtime</td><td>Cập nhật UI không cần reload (SignalR)</td></tr>
+</table>
+
+<h2>2. Công nghệ sử dụng</h2>
+<table>
+<tr><th>Thành phần</th><th>Công nghệ</th></tr>
+<tr><td>Framework</td><td>ASP.NET Core 8 — Razor Pages</td></tr>
+<tr><td>Cơ sở dữ liệu</td><td>SQL Server LocalDB</td></tr>
+<tr><td>ORM</td><td>Entity Framework Core 8</td></tr>
+<tr><td>Xác thực</td><td>ASP.NET Core Identity (Cookie)</td></tr>
+<tr><td>AI</td><td>Google Gemini API</td></tr>
+<tr><td>Realtime</td><td>SignalR</td></tr>
+<tr><td>Email</td><td>MailKit (SMTP Gmail)</td></tr>
+<tr><td>Trích xuất văn bản</td><td>PdfPig, OpenXML (PDF, DOCX, PPTX)</td></tr>
+</table>
+
+<h2>3. Kiến trúc 3 lớp</h2>
+<table>
+<tr><th>Lớp</th><th>Project</th><th>Chức năng</th></tr>
+<tr><td>Presentation</td><td>EduAI.Web</td><td>Razor Pages, SignalR Hubs, Middleware, Identity</td></tr>
+<tr><td>Business Logic</td><td>EduAI.BusinessLogic</td><td>Services, Helpers, Dependency Injection</td></tr>
+<tr><td>Data Access</td><td>EduAI.Model</td><td>Entities, Repositories, UnitOfWork, DbContext, Migrations</td></tr>
+</table>
+<p class="note">Luồng bắt buộc: PageModel → Service → Repository/UnitOfWork → DbContext → SQL Server</p>
+
+<h2>4. Vai trò người dùng</h2>
+<table>
+<tr><th>Vai trò</th><th>Quyền chính</th></tr>
+<tr><td>Admin</td><td>Quản lý user, môn học, gán GV, upload, chunks, audit log, xem chat (read-only)</td></tr>
+<tr><td>Teacher</td><td>Xem môn được gán, upload/quản lý tài liệu &amp; chương, xác thực email trước khi đăng nhập</td></tr>
+<tr><td>Student</td><td>Xem môn có tài liệu, tải tài liệu, chat RAG theo môn</td></tr>
+</table>
+
+<h2>5. Tài khoản demo</h2>
+<table>
+<tr><th>Email</th><th>Mật khẩu</th><th>Vai trò</th></tr>
+<tr><td>admin@gmail.com</td><td>12345</td><td>Admin</td></tr>
+<tr><td>teacher@gmail.com</td><td>12345</td><td>Teacher</td></tr>
+<tr><td>student@gmail.com</td><td>12345</td><td>Student</td></tr>
+</table>
+
+<h2>6. Quy tắc nghiệp vụ — Môn học &amp; Giáo viên</h2>
+<table>
+<tr><th>Quy tắc</th><th>Chi tiết</th></tr>
+<tr><td>1 môn — 1 giáo viên</td><td>Mỗi môn chỉ có tối đa một giáo viên phụ trách</td></tr>
+<tr><td>1 giáo viên — nhiều môn</td><td>Một giáo viên có thể dạy nhiều môn</td></tr>
+<tr><td>Gán một lần (demo)</td><td>Sau khi gán, không đổi và không gỡ giáo viên</td></tr>
+<tr><td>Gán nhanh</td><td>Tag 「Gán giáo viên」 trên trang danh sách môn (Admin)</td></tr>
+<tr><td>Ẩn môn</td><td>Admin deactivate môn; sinh viên không thấy môn đã ẩn</td></tr>
+</table>
+
+<h2>7. Quy tắc nghiệp vụ — Tài liệu</h2>
+<table>
+<tr><th>Quy tắc</th><th>Chi tiết</th></tr>
+<tr><td>Định dạng</td><td>PDF, DOCX, PPTX, TXT</td></tr>
+<tr><td>Dung lượng</td><td>Tối đa 50 MB / file</td></tr>
+<tr><td>1 chương — 1 file</td><td>Mỗi chương chỉ upload một tài liệu</td></tr>
+<tr><td>Lưu trữ</td><td>uploads/{subjectId}/{chapterId}/</td></tr>
+<tr><td>Index nền</td><td>Chunk + embedding bất đồng bộ sau upload</td></tr>
+<tr><td>Trạng thái</td><td>Indexed → 「đã tải nội dung thành công」</td></tr>
+</table>
+
+<h2>8. Quy tắc nghiệp vụ — Chat RAG</h2>
+<table>
+<tr><th>Quy tắc</th><th>Chi tiết</th></tr>
+<tr><td>Phạm vi</td><td>Chỉ retrieve chunk trong cùng môn học (SubjectId)</td></tr>
+<tr><td>Phiên chat</td><td>1 sinh viên + 1 môn / phiên</td></tr>
+<tr><td>Trích nguồn</td><td>Hiện khi relevance score ≥ 0.55</td></tr>
+<tr><td>Model chat</td><td>gemini-2.5-flash</td></tr>
+<tr><td>Model embedding</td><td>gemini-embedding-001</td></tr>
+<tr><td>Tìm kiếm</td><td>Cosine similarity (semantic), fallback keyword</td></tr>
+</table>
+
+<h2>9. Mô hình dữ liệu chính</h2>
+<table>
+<tr><th>Entity</th><th>Mô tả</th></tr>
+<tr><td>ApplicationUser</td><td>Người dùng (Identity)</td></tr>
+<tr><td>Subject</td><td>Môn học, TeacherId nullable</td></tr>
+<tr><td>Chapter</td><td>Chương thuộc môn</td></tr>
+<tr><td>Document</td><td>File tài liệu, FilePath, metadata</td></tr>
+<tr><td>DocumentChunk</td><td>Đoạn văn bản đã tách (~800 ký tự)</td></tr>
+<tr><td>DocumentEmbedding</td><td>Vector JSON float[] trong SQL</td></tr>
+<tr><td>ChatSession</td><td>Phiên chat (Student + Subject)</td></tr>
+<tr><td>ChatMessage</td><td>Tin nhắn user/assistant, Citations</td></tr>
+<tr><td>AuditLog</td><td>Nhật ký thao tác hệ thống</td></tr>
+</table>
+
+<h2>10. SignalR — Realtime</h2>
+<table>
+<tr><th>Hub</th><th>Endpoint</th><th>Mục đích</th></tr>
+<tr><td>UserHub</td><td>/hubs/user</td><td>Khóa tài khoản → force logout</td></tr>
+<tr><td>SubjectHub</td><td>/hubs/subjects</td><td>CRUD môn, gán GV, upload → cập nhật danh sách</td></tr>
+<tr><td>NotificationHub</td><td>/hubs/notifications</td><td>Sự kiện Documents, Chat, Audit...</td></tr>
+</table>
+
+<h2>11. Chức năng theo module</h2>
+<table>
+<tr><th>Module</th><th>Route</th><th>Vai trò</th><th>Chức năng</th></tr>
+<tr><td>Người dùng</td><td>/Users</td><td>Admin</td><td>CRUD, khóa/mở khóa tài khoản</td></tr>
+<tr><td>Môn học</td><td>/Subjects</td><td>All</td><td>Danh sách, CRUD, gán GV, chi tiết tài liệu</td></tr>
+<tr><td>Chương</td><td>/Chapters</td><td>Admin/Teacher</td><td>CRUD chương</td></tr>
+<tr><td>Tài liệu</td><td>/Documents</td><td>Admin/Teacher</td><td>Upload, index, sửa, xóa</td></tr>
+<tr><td>Chunks</td><td>/Chunks</td><td>Admin</td><td>Quản lý đoạn văn &amp; embedding</td></tr>
+<tr><td>Chat</td><td>/Chat</td><td>Student</td><td>Phiên chat RAG theo môn</td></tr>
+<tr><td>Audit Logs</td><td>/AuditLogs</td><td>Admin</td><td>Nhật ký hệ thống</td></tr>
+<tr><td>Study</td><td>/Study</td><td>Student</td><td>Xem/tải tài liệu</td></tr>
+<tr><td>Profile</td><td>/Account/Profile</td><td>Teacher/Student</td><td>Sửa thông tin cá nhân</td></tr>
+</table>
+
+<h2>12. Luồng RAG tóm tắt</h2>
+<table>
+<tr><th>Giai đoạn</th><th>Bước</th><th>Mô tả</th></tr>
+<tr><td rowspan="7">Indexing</td><td>1</td><td>Upload file → lưu disk</td></tr>
+<tr><td>2</td><td>Enqueue DocumentIndexingQueue</td></tr>
+<tr><td>3</td><td>Extract text (PDF/DOCX/PPTX)</td></tr>
+<tr><td>4</td><td>Chunk văn bản (~800 ký tự, overlap 120)</td></tr>
+<tr><td>5</td><td>Gemini embedContent → vector</td></tr>
+<tr><td>6</td><td>Lưu DocumentChunk + DocumentEmbedding</td></tr>
+<tr><td>7</td><td>SignalR báo tiến độ index</td></tr>
+<tr><td rowspan="5">Chat</td><td>1</td><td>Sinh viên gửi câu hỏi</td></tr>
+<tr><td>2</td><td>Embed câu hỏi + cosine similarity Top 5</td></tr>
+<tr><td>3</td><td>Ghép context từ chunk liên quan</td></tr>
+<tr><td>4</td><td>Gemini generateContent trả lời</td></tr>
+<tr><td>5</td><td>Lưu tin nhắn + trích nguồn (nếu đủ score)</td></tr>
+</table>
+
+<p class="note" style="margin-top:24pt;text-align:center;">— Hết tài liệu —</p>
+
+</body>
+</html>

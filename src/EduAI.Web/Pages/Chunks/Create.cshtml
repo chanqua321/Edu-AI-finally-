@@ -1,0 +1,28 @@
+@page
+@model EduAI.Web.Pages.Chunks.CreateModel
+@{ ViewData["Title"] = "Tạo đoạn văn"; }
+
+<h2>Tạo đoạn văn</h2>
+<p class="text-muted">Môn: <strong>@Model.Input.SubjectName</strong></p>
+
+<form method="post" class="card p-3">
+    <input type="hidden" asp-for="Input.SubjectId" />
+    <div class="mb-3">
+        <label asp-for="Input.ChapterId" class="form-label"></label>
+        <select asp-for="Input.ChapterId" asp-items="Model.ChapterOptions" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.DocumentId" class="form-label"></label>
+        <select asp-for="Input.DocumentId" asp-items="Model.DocumentOptions" class="form-select"></select>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.ChunkIndex" class="form-label"></label>
+        <input asp-for="Input.ChunkIndex" class="form-control" placeholder="Tự động nếu để trống" />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.Content" class="form-label"></label>
+        <textarea asp-for="Input.Content" class="form-control" rows="8" required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Tạo</button>
+    <a asp-page="Index" asp-route-subjectId="@Model.Input.SubjectId" class="btn btn-secondary">Hủy</a>
+</form>
