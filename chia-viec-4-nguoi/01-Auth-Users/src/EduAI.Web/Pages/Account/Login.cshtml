@@ -1,0 +1,47 @@
+@page
+@model EduAI.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Đăng nhập";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đăng nhập - EduAI</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="login-page">
+    <div class="login-card">
+        <div class="login-brand">EduAI</div>
+        <p class="login-subtitle">Đăng nhập bằng email của bạn</p>
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+        <form method="post">
+            <div class="mb-3">
+                <label asp-for="Input.UserName" class="form-label">Email</label>
+                <input asp-for="Input.UserName" class="form-control" placeholder="email@example.com" />
+                <span asp-validation-for="Input.UserName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.Password" class="form-label">Mật khẩu</label>
+                <input asp-for="Input.Password" class="form-control" />
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2">Đăng nhập</button>
+        </form>
+        @if (Model.ShowResendLink)
+        {
+            <a asp-page="/Account/ResendEmailConfirmation" asp-route-email="@Model.ResendEmail" class="btn btn-outline-secondary w-100 mt-2">
+                Gửi lại email xác thực
+            </a>
+        }
+    </div>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+</body>
+</html>

@@ -1,0 +1,30 @@
+@page
+@model EduAI.Web.Pages.Users.CreateModel
+@{
+    ViewData["Title"] = "Tạo tài khoản";
+}
+
+<h2>Tạo tài khoản</h2>
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Input.FullName" class="form-label"></label>
+        <input asp-for="Input.FullName" class="form-control" />
+        <span asp-validation-for="Input.FullName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" type="email" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.Role" class="form-label"></label>
+        <select asp-for="Input.Role" asp-items="Model.RoleOptions" class="form-select"></select>
+        <span asp-validation-for="Input.Role" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Tạo</button>
+    <a asp-page="Index" class="btn btn-secondary">Hủy</a>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

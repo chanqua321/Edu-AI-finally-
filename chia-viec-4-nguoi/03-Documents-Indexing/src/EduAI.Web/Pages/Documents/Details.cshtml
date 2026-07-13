@@ -1,0 +1,531 @@
+@page "{id:int}"
+
+@model EduAI.Web.Pages.Documents.DetailsModel
+
+@{
+
+    ViewData["Title"] = "Chi tiết tài liệu";
+
+    var d = Model.ViewModel.Document!;
+
+    var statusClass = d.IndexStatus switch
+
+    {
+
+        "Indexed" => "status-indexed",
+
+        "Processing" => "status-processing",
+
+        "Failed" => "bg-danger",
+
+        _ => "status-pending"
+
+    };
+
+}
+
+<h2 class="mb-3">Chi tiết tài liệu</h2>
+
+
+
+<div class="file-info-panel mb-4">
+
+    <div class="file-info-header">
+
+        <span class="file-info-icon">i</span>
+
+        <span>Thông tin file</span>
+
+    </div>
+
+    <div class="file-info-body">
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">TÊN FILE</span>
+
+            <span class="file-info-value file-name">@d.FileName</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">LOẠI</span>
+
+            <span class="badge badge-type">@d.FileType</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">PHÂN LOẠI</span>
+
+            <span class="file-info-value">@d.CategoryLabel</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">MÔN HỌC</span>
+
+            <span class="file-info-value text-subject">@d.SubjectName</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">CHƯƠNG</span>
+
+            <span class="file-info-value fw-semibold">@d.ChapterName</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">BÀI</span>
+
+            <span class="file-info-value fw-semibold">@d.LessonName</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">SỐ CHUNK</span>
+
+            @if (d.ChunkCount > 0)
+
+            {
+
+                <a asp-page="Details"
+
+                   asp-route-id="@d.Id"
+
+                   asp-route-showChunks="true"
+
+                   class="badge badge-chunks text-decoration-none"
+
+                   id="chunk-count-link">@d.ChunkCount đoạn</a>
+
+            }
+
+            else
+
+            {
+
+                <span class="badge badge-chunks-muted">0 đoạn</span>
+
+            }
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">TRẠNG THÁI</span>
+
+            <span class="badge @statusClass">
+
+                @if (d.IndexStatus == "Indexed") { <text>✓ </text> }
+                @(d.IndexStatus == "Indexed" ? "đã tải nội dung thành công" : d.IndexStatus == "Processing" ? "Đang xử lý" : d.IndexStatus == "Failed" ? "Lỗi xử lý" : d.IndexStatus == "Pending" ? "Chờ xử lý" : d.IndexStatus)
+
+            </span>
+
+        </div>
+
+        @if (d.IndexStatus == "Failed")
+        {
+            <div class="file-info-row">
+                <span class="file-info-label">LÝ DO LỖI</span>
+                <div class="file-info-value" style="width: 100%;">
+                    <div class="text-danger small mb-2">@(string.IsNullOrWhiteSpace(d.IndexError) ? "Không trích xuất được nội dung từ file." : d.IndexError)</div>
+                    @if (Model.CanManageDocuments)
+                    {
+                        <form method="post" asp-page="/Documents/Index" asp-page-handler="Reindex">
+                            <input type="hidden" name="documentId" value="@d.Id" />
+                            <button type="submit" class="btn btn-sm btn-outline-warning">Xử lý lại</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+        else if (d.IndexStatus != "Indexed")
+        {
+            <div class="file-info-row">
+                <span class="file-info-label">TIẾN TRÌNH</span>
+                <div class="file-info-value" style="width: 100%;">
+                    <div class="progress" style="height: 18px;">
+                        <div id="index-progress-bar"
+                             class="progress-bar"
+                             role="progressbar"
+                             style="width: 0%;"
+                             aria-valuenow="0"
+                             aria-valuemin="0"
+                             aria-valuemax="100">0%</div>
+                    </div>
+                    <div class="text-muted small mt-1" id="index-progress-text">Đang chờ xử lý...</div>
+                </div>
+            </div>
+        }
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">UPLOAD LÚC</span>
+
+            <span class="file-info-value">@d.CreatedAt.ToLocalTime().ToString("M/d/yyyy h:mm tt")</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">XỬ LÝ XONG</span>
+
+            <span class="file-info-value">@(d.ProcessedAt?.ToLocalTime().ToString("M/d/yyyy h:mm tt") ?? "—")</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">KÍCH THƯỚC</span>
+
+            <span class="file-info-value">@d.FileSizeBytes.ToString("N0") bytes</span>
+
+        </div>
+
+        <div class="file-info-row">
+
+            <span class="file-info-label">UPLOAD BỞI</span>
+
+            <span class="file-info-value">@d.UploadedByName</span>
+
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(d.LastModifiedByName))
+        {
+            <div class="file-info-row">
+
+                <span class="file-info-label">SỬA BỞI</span>
+
+                <span class="file-info-value">@d.LastModifiedByName</span>
+
+            </div>
+
+            <div class="file-info-row">
+
+                <span class="file-info-label">SỬA LÚC</span>
+
+                <span class="file-info-value">@(d.UpdatedAt?.ToLocalTime().ToString("M/d/yyyy h:mm tt") ?? "—")</span>
+
+            </div>
+        }
+
+    </div>
+
+</div>
+
+
+
+@if (Model.ViewModel.ShowChunks)
+
+{
+
+    <div class="card mb-4" id="chunk-panel">
+
+        <div class="card-header d-flex justify-content-between align-items-center">
+
+            <strong>Nội dung các đoạn (<span id="chunk-panel-count">@d.Chunks.Count</span>)</strong>
+
+            <a asp-page="Details" asp-route-id="@d.Id" class="btn btn-sm btn-outline-secondary">Ẩn đoạn văn</a>
+
+        </div>
+
+        <div class="card-body p-0" id="chunk-panel-body">
+
+            @if (d.Chunks.Count == 0)
+
+            {
+
+                <div class="p-3 text-muted" id="chunk-empty-msg">Chưa có đoạn văn nào. Tài liệu có thể đang được xử lý.</div>
+
+            }
+
+            else
+
+            {
+
+                <div class="accordion accordion-flush" id="chunkAccordion">
+
+                    @foreach (var chunk in d.Chunks)
+
+                    {
+
+                        var collapseId = $"chunk-{chunk.Id}";
+
+                        var isOpen = Model.ViewModel.SelectedChunkId == chunk.Id;
+
+                        <div class="accordion-item" id="chunk-item-@chunk.Id">
+
+                            <h2 class="accordion-header">
+
+                                <button class="accordion-button @(isOpen ? "" : "collapsed")"
+
+                                        type="button"
+
+                                        data-bs-toggle="collapse"
+
+                                        data-bs-target="#@collapseId"
+
+                                        aria-expanded="@isOpen.ToString().ToLower()">
+
+                                    Đoạn #@chunk.ChunkIndex
+
+                                    @if (Model.ViewModel.IsAdmin && chunk.HasEmbedding)
+                                    {
+                                        <span class="badge bg-success ms-2">Đã nhúng</span>
+                                    }
+
+                                    <span class="text-muted ms-2 small">@(chunk.Content.Length > 60 ? chunk.Content[..60] + "..." : chunk.Content)</span>
+
+                                </button>
+
+                            </h2>
+
+                            <div id="@collapseId" class="accordion-collapse collapse @(isOpen ? "show" : "")" data-bs-parent="#chunkAccordion">
+
+                                <div class="accordion-body">
+
+                                    <pre class="chunk-content mb-2">@chunk.Content</pre>
+
+                                    <a asp-page="/Chunks/Details" asp-route-id="@chunk.Id" class="btn btn-sm btn-outline-primary">Chi tiết đoạn văn</a>
+
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    }
+
+                </div>
+
+            }
+
+        </div>
+
+    </div>
+
+}
+
+
+
+<div class="d-flex gap-2">
+    @if (Model.CanManageDocuments)
+    {
+        <a asp-page="Edit" asp-route-id="@d.Id" class="btn btn-primary">Sửa</a>
+        <form method="post" asp-page-handler="Delete" class="d-inline">
+            <input type="hidden" name="id" value="@d.Id" />
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Xóa tài liệu và tất cả đoạn văn?')">Xóa</button>
+        </form>
+    }
+    <a asp-page="Index" asp-route-subjectId="@d.SubjectId" class="btn btn-secondary">Quay lại</a>
+
+</div>
+
+
+
+@section Scripts {
+
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function () {
+
+            const panel = document.getElementById('chunk-panel');
+
+            if (panel) {
+
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            }
+
+        });
+
+    </script>
+
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script>
+        (function () {
+            const documentId = @d.Id;
+            const showChunks = @(Model.ViewModel.ShowChunks ? "true" : "false");
+            const isAdmin = @(Model.ViewModel.IsAdmin ? "true" : "false");
+            const initialStatus = "@d.IndexStatus";
+            const chunksUrl = '@Url.Page("Details", "Chunks", new { id = d.Id })';
+            const progressBar = document.getElementById('index-progress-bar');
+            const progressText = document.getElementById('index-progress-text');
+            const chunkPanelCount = document.getElementById('chunk-panel-count');
+            const chunkPanelBody = document.getElementById('chunk-panel-body');
+            let chunksLoaded = @d.Chunks.Count;
+            let fetchTimer = null;
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function setStatus(text) {
+                const rows = document.querySelectorAll('.file-info-row');
+                for (const row of rows) {
+                    const label = row.querySelector('.file-info-label');
+                    if (label && label.textContent.trim() === 'TRẠNG THÁI') {
+                        const badge = row.querySelector('.badge');
+                        if (badge) {
+                            badge.className = 'badge ' + (text === 'Indexed' ? 'status-indexed' : text === 'Processing' ? 'status-processing' : text === 'Failed' ? 'bg-danger' : 'status-pending');
+                            badge.textContent = text === 'Indexed' ? '✓ đã tải nội dung thành công'
+                                : text === 'Processing' ? 'Đang xử lý'
+                                : text === 'Failed' ? 'Lỗi xử lý'
+                                : text === 'Pending' ? 'Chờ xử lý' : text;
+                        }
+                    }
+                }
+            }
+
+            function clampPercent(p) {
+                if (typeof p !== 'number' || Number.isNaN(p)) return 0;
+                return Math.max(0, Math.min(100, Math.round(p)));
+            }
+
+            function setProgress(percent, detail) {
+                if (!progressBar) return;
+                const p = clampPercent(percent);
+                progressBar.style.width = p + '%';
+                progressBar.setAttribute('aria-valuenow', String(p));
+                progressBar.textContent = p + '%';
+                progressBar.classList.remove('bg-danger', 'bg-warning', 'bg-info', 'bg-success');
+                if (p >= 100) progressBar.classList.add('bg-success');
+                else if (p >= 70) progressBar.classList.add('bg-info');
+                else if (p >= 30) progressBar.classList.add('bg-warning');
+                else progressBar.classList.add('bg-danger');
+                if (progressText) progressText.textContent = detail || (p >= 100 ? 'Hoàn tất.' : 'Đang xử lý...');
+            }
+
+            function setChunkCount(count) {
+                if (typeof count !== 'number') return;
+                chunksLoaded = count;
+                if (chunkPanelCount) chunkPanelCount.textContent = String(count);
+                const rows = document.querySelectorAll('.file-info-row');
+                for (const row of rows) {
+                    const label = row.querySelector('.file-info-label');
+                    if (label && label.textContent.trim() === 'SỐ CHUNK') {
+                        const link = row.querySelector('#chunk-count-link');
+                        if (link) link.textContent = count + ' đoạn';
+                        const muted = row.querySelector('.badge-chunks-muted');
+                        if (muted) muted.textContent = count + ' đoạn';
+                    }
+                }
+            }
+
+            function setProcessedAt(isoUtc) {
+                if (!isoUtc) return;
+                const dt = new Date(isoUtc);
+                const rows = document.querySelectorAll('.file-info-row');
+                for (const row of rows) {
+                    const label = row.querySelector('.file-info-label');
+                    if (label && label.textContent.trim() === 'XỬ LÝ XONG') {
+                        const value = row.querySelector('.file-info-value');
+                        if (value) value.textContent = dt.toLocaleString();
+                    }
+                }
+            }
+
+            function renderChunks(chunks) {
+                if (!chunkPanelBody || !showChunks) return;
+                if (!chunks || chunks.length === 0) {
+                    chunkPanelBody.innerHTML = '<div class="p-3 text-muted" id="chunk-empty-msg">Chưa có đoạn văn nào. Tài liệu có thể đang được xử lý.</div>';
+                    return;
+                }
+
+                let html = '<div class="accordion accordion-flush" id="chunkAccordion">';
+                chunks.forEach(function (chunk) {
+                    const collapseId = 'chunk-' + chunk.id;
+                    const preview = chunk.content.length > 60 ? chunk.content.substring(0, 60) + '...' : chunk.content;
+                    const embedBadge = isAdmin && chunk.hasEmbedding ? '<span class="badge bg-success ms-2">Đã nhúng</span>' : '';
+                    html += '<div class="accordion-item" id="chunk-item-' + chunk.id + '">' +
+                        '<h2 class="accordion-header">' +
+                        '<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#' + collapseId + '">' +
+                        'Đoạn #' + chunk.chunkIndex + embedBadge +
+                        '<span class="text-muted ms-2 small">' + escapeHtml(preview) + '</span>' +
+                        '</button></h2>' +
+                        '<div id="' + collapseId + '" class="accordion-collapse collapse" data-bs-parent="#chunkAccordion">' +
+                        '<div class="accordion-body">' +
+                        '<pre class="chunk-content mb-2">' + escapeHtml(chunk.content) + '</pre>' +
+                        '<a href="/Chunks/Details?id=' + chunk.id + '" class="btn btn-sm btn-outline-primary">Chi tiết đoạn văn</a>' +
+                        '</div></div></div>';
+                });
+                html += '</div>';
+                chunkPanelBody.innerHTML = html;
+            }
+
+            function scheduleLoadChunks() {
+                if (!showChunks) return;
+                clearTimeout(fetchTimer);
+                fetchTimer = setTimeout(loadChunks, 300);
+            }
+
+            function loadChunks() {
+                if (!showChunks) return;
+                fetch(chunksUrl, { headers: { 'Accept': 'application/json' } })
+                    .then(function (r) { return r.ok ? r.json() : null; })
+                    .then(function (data) {
+                        if (!data) return;
+                        setChunkCount(data.count);
+                        if (data.count > 0) renderChunks(data.chunks);
+                    })
+                    .catch(function () { /* best effort */ });
+            }
+
+            const needsRealtime = initialStatus !== 'Indexed' && initialStatus !== 'Failed';
+            if (needsRealtime && progressBar) setProgress(0, 'Đang chờ xử lý...');
+
+            if (showChunks && (needsRealtime || chunksLoaded === 0)) {
+                loadChunks();
+            }
+
+            if (!needsRealtime && initialStatus !== 'Failed') return;
+
+            const connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hubs/notifications")
+                .withAutomaticReconnect()
+                .build();
+
+            connection.on("EntityChanged", function (evt) {
+                if (!evt || evt.entityType !== "DocumentIndex" || evt.entityId !== documentId) return;
+                let payload = null;
+                try { payload = JSON.parse(evt.message); } catch { return; }
+                if (!payload) return;
+
+                if (payload.status) setStatus(payload.status);
+                if (typeof payload.chunkCount === 'number') setChunkCount(payload.chunkCount);
+                if (payload.processedAt) setProcessedAt(payload.processedAt);
+
+                const chunkCount = typeof payload.chunkCount === 'number' ? payload.chunkCount : 0;
+                const embedded = typeof payload.embedded === 'number' ? payload.embedded : 0;
+                if (payload.status === 'Indexed') {
+                    setProgress(100, 'Hoàn tất: ' + embedded + '/' + chunkCount + ' embeddings');
+                    loadChunks();
+                } else if (chunkCount > 0) {
+                    const pct = (embedded / chunkCount) * 100;
+                    setProgress(pct, 'Đang index: ' + embedded + '/' + chunkCount + ' embeddings');
+                    if (evt.action === 'ChunksCreated' || embedded % 10 === 0) scheduleLoadChunks();
+                } else {
+                    setProgress(5, 'Đang đọc & tách nội dung...');
+                }
+
+                if (evt.action === 'ChunksCreated') scheduleLoadChunks();
+            });
+
+            connection.start().catch(function () { /* best effort */ });
+        })();
+    </script>
+
+}
+
+

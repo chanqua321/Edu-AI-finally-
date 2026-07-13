@@ -1,0 +1,71 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Chapters.DetailsModel
+@{ ViewData["Title"] = "Chi tiết chương"; var c = Model.ViewModel.Chapter!; }
+
+<h2>@c.Name</h2>
+
+<dl class="row">
+    <dt class="col-sm-3">Môn học</dt><dd class="col-sm-9">@c.SubjectName</dd>
+    <dt class="col-sm-3">Thứ tự</dt><dd class="col-sm-9">@c.OrderNumber</dd>
+    <dt class="col-sm-3">Số bài</dt><dd class="col-sm-9">@c.LessonCount</dd>
+    <dt class="col-sm-3">Tài liệu</dt>
+    <dd class="col-sm-9">
+        @if (c.DocumentCount > 0)
+        {
+            <a asp-page="/Documents/Index" asp-route-subjectId="@c.SubjectId" class="btn btn-sm btn-outline-primary">Xem @c.DocumentCount tài liệu</a>
+            <span class="badge bg-primary ms-2">@c.ChunkCount đoạn</span>
+        }
+        else
+        {
+            <span>Chưa có tài liệu</span>
+        }
+    </dd>
+</dl>
+
+@if (Model.Lessons.Count > 0)
+{
+    <div class="card mb-3">
+        <div class="card-header"><strong>Danh sách bài</strong></div>
+        <div class="card-body p-0">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Thứ tự</th>
+                        <th>Tên bài</th>
+                        <th>Tài liệu</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var lesson in Model.Lessons.OrderBy(l => l.OrderNumber))
+                {
+                    <tr>
+                        <td>@lesson.OrderNumber</td>
+                        <td>@lesson.Name</td>
+                        <td><span class="badge bg-light text-dark border">@lesson.DocumentCount</span></td>
+                        <td>
+                            @if (User.IsInRole(Roles.Teacher))
+                            {
+                                <a asp-page="/Documents/Create" asp-route-subjectId="@c.SubjectId" asp-route-chapterId="@c.Id" asp-route-lessonId="@lesson.Id" class="btn btn-sm btn-primary">+ Tài liệu</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@if (User.IsInRole(Roles.Teacher))
+{
+    <a asp-page="/Documents/Create" asp-route-subjectId="@c.SubjectId" asp-route-chapterId="@c.Id" class="btn btn-success">Tải tài liệu</a>
+}
+
+<div class="d-flex gap-2 mt-3">
+    @if (User.IsInRole(Roles.Teacher))
+    {
+        <a asp-page="Edit" asp-route-id="@c.Id" class="btn btn-primary">Sửa</a>
+    }
+    <a asp-page="Index" asp-route-subjectId="@c.SubjectId" class="btn btn-secondary">Quay lại</a>
+</div>
