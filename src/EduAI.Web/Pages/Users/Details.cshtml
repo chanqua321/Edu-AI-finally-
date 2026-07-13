@@ -1,0 +1,228 @@
+@page "{id}"
+
+@model EduAI.Web.Pages.Users.DetailsModel
+
+@{
+
+    ViewData["Title"] = "Chi tiết người dùng";
+    ViewData["RealtimeEntities"] = "User";
+
+    var user = Model.ViewModel.User!;
+
+}
+
+<h2>Chi tiết người dùng</h2>
+
+@if (Model.LockFailed)
+
+{
+
+    <div class="alert alert-warning">Không thể khóa tài khoản này.</div>
+
+}
+
+<dl class="row">
+
+    <dt class="col-sm-3">Họ tên</dt><dd class="col-sm-9">@user.FullName</dd>
+
+    <dt class="col-sm-3">Tên đăng nhập</dt><dd class="col-sm-9">@user.UserName</dd>
+
+    <dt class="col-sm-3">Email</dt><dd class="col-sm-9">@user.Email</dd>
+
+    <dt class="col-sm-3">Vai trò</dt><dd class="col-sm-9">@(user.Role == Roles.Admin ? "Quản trị viên" : user.Role == Roles.Teacher ? "Giáo viên" : user.Role == Roles.Student ? "Sinh viên" : user.Role)</dd>
+
+    <dt class="col-sm-3">Trạng thái</dt>
+
+    <dd class="col-sm-9">
+
+        @if (user.IsActive)
+
+        {
+
+            <span class="badge bg-success">Đang hoạt động</span>
+
+        }
+
+        else
+
+        {
+
+            <span class="badge bg-secondary">Đã khóa</span>
+
+        }
+
+    </dd>
+
+    @if (user.Role == Roles.Teacher)
+
+    {
+
+        <dt class="col-sm-3">Email xác thực</dt>
+
+        <dd class="col-sm-9">
+
+            @if (user.EmailConfirmed)
+
+            {
+
+                <span class="badge bg-success">Đã xác thực</span>
+
+            }
+
+            else
+
+            {
+
+                <span class="badge bg-warning text-dark">Chưa xác thực</span>
+
+                <form method="post" asp-page-handler="ResendConfirmation" class="d-inline ms-2">
+
+                    <input type="hidden" name="id" value="@user.Id" />
+
+                    <button type="submit" class="btn btn-sm btn-outline-primary">Gửi lại email xác thực</button>
+
+                </form>
+
+            }
+
+        </dd>
+
+    }
+
+</dl>
+
+@if (Model.ConfirmationResent)
+
+{
+
+    <div class="alert alert-success">Đã gửi lại email xác thực tới @user.Email.</div>
+
+}
+
+@if (Model.ConfirmationResendFailed)
+
+{
+
+    <div class="alert alert-warning">Không gửi được email xác thực. Kiểm tra cấu hình SMTP trong appsettings.</div>
+
+}
+
+@if (Model.AccountEmailResent)
+{
+    <div class="alert alert-success">Đã gửi lại email tài khoản tới @user.Email.</div>
+}
+
+@if (Model.AccountEmailResendFailed)
+{
+    <div class="alert alert-warning">Không gửi được email tài khoản. Kiểm tra cấu hình SMTP trong appsettings.</div>
+}
+
+@if (Model.PasswordReset)
+
+{
+
+    <div class="alert alert-success">Đã đặt lại mật khẩu thành công.</div>
+
+}
+
+@if (!string.IsNullOrEmpty(Model.ViewModel.TemporaryPassword))
+
+{
+
+    <div class="alert alert-info">
+
+        <strong>Mật khẩu tạm:</strong> @Model.ViewModel.TemporaryPassword<br />
+
+        <strong>Đã gửi email:</strong> @(Model.ViewModel.EmailSent ? "Có" : "Không — kiểm tra EmailSettings trong appsettings")<br />
+
+        <strong>Lưu ý:</strong> Giáo viên phải bấm link xác thực trong email trước khi đăng nhập.
+
+    </div>
+
+}
+
+@if (user.Role == Roles.Teacher)
+
+{
+
+    <h4 class="mt-4">Môn được gán</h4>
+
+    @if (Model.ViewModel.AssignedSubjects.Count == 0)
+    {
+        <div class="alert alert-secondary">Chưa gán môn nào. Gán tại <a asp-page="/Subjects/Index">Môn học</a> → Sửa.</div>
+    }
+
+    else
+
+    {
+
+        <ul class="list-group mb-3">
+
+            @foreach (var subject in Model.ViewModel.AssignedSubjects)
+
+            {
+
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+
+                    <span>@subject.Name</span>
+
+                    <a asp-page="/Subjects/Details" asp-route-id="@subject.Id" class="btn btn-sm btn-outline-primary">Xem</a>
+
+                </li>
+
+            }
+
+        </ul>
+
+    }
+
+}
+
+<div class="d-flex flex-wrap gap-2">
+
+    @if (user.Role != Roles.Admin)
+
+    {
+
+        <a asp-page="Edit" asp-route-id="@user.Id" class="btn btn-primary">Sửa / Quản lý</a>
+
+        <form method="post" asp-page-handler="ResendAccountEmail" asp-route-id="@user.Id" class="d-inline"
+              onsubmit="return confirm('Hệ thống sẽ tạo mật khẩu tạm mới và gửi email cho người dùng. Tiếp tục?');">
+            <button type="submit" class="btn btn-outline-primary">Gửi lại email tài khoản</button>
+        </form>
+
+        @if (user.IsActive)
+
+        {
+
+            <form method="post" asp-page-handler="Lock" asp-route-id="@user.Id" class="d-inline" onsubmit="return confirm('Khóa tài khoản này? Người dùng sẽ bị đăng xuất ngay.');">
+
+                <button type="submit" class="btn btn-outline-warning">Khóa tài khoản</button>
+
+            </form>
+
+        }
+
+        else
+
+        {
+
+            <form method="post" asp-page-handler="Unlock" asp-route-id="@user.Id" class="d-inline" onsubmit="return confirm('Mở khóa tài khoản? Người dùng phải đăng nhập lại.');">
+
+                <button type="submit" class="btn btn-success">Mở khóa</button>
+
+            </form>
+
+        }
+
+    }
+
+    else
+    {
+        <span class="text-muted align-self-center">Tài khoản quản trị viên chỉ xem.</span>
+    }
+
+    <a asp-page="Index" class="btn btn-secondary">Quay lại</a>
+
+</div>
+

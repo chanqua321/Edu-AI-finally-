@@ -1,0 +1,97 @@
+@page
+@model EduAI.Web.Pages.Chunks.IndexModel
+@{ ViewData["Title"] = "Đoạn văn tài liệu"; ViewData["RealtimeEntities"] = "Chunk,Embedding"; }
+
+<h2>Đoạn văn tài liệu</h2>
+
+@if (Model.ViewModel.SubjectId.HasValue)
+{
+    <p class="text-muted small mb-3">Admin chỉ xem danh sách đoạn văn. Giáo viên quản lý nội dung qua trang Môn học.</p>
+}
+
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-md-4">
+        <label class="form-label">Môn học</label>
+        <select name="subjectId" class="form-select" onchange="this.form.submit()">
+            <option value="">-- Chọn môn học --</option>
+            @foreach (var s in Model.ViewModel.Subjects)
+            {
+                if (Model.ViewModel.SubjectId == s.Id)
+                {
+                    <option value="@s.Id" selected>@s.Name</option>
+                }
+                else
+                {
+                    <option value="@s.Id">@s.Name</option>
+                }
+            }
+        </select>
+    </div>
+    @if (Model.ViewModel.SubjectId.HasValue)
+    {
+        <div class="col-md-4">
+            <label class="form-label">Tìm kiếm</label>
+            <input name="keyword" value="@Model.ViewModel.Keyword" class="form-control" placeholder="Nội dung, chương hoặc tên file..." />
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Lọc</button>
+            <a asp-page="Index" asp-route-subjectId="@Model.ViewModel.SubjectId" class="btn btn-outline-secondary">Xóa lọc</a>
+        </div>
+    }
+</form>
+
+@if (!Model.ViewModel.SubjectId.HasValue)
+{
+    <div class="alert alert-secondary">Chọn môn học để xem các đoạn văn được tạo từ tài liệu đã tải lên.</div>
+}
+else if (Model.ViewModel.Chunks.Count == 0)
+{
+    <div class="alert alert-warning">
+        Không tìm thấy đoạn văn cho môn này.
+        @if (string.IsNullOrWhiteSpace(Model.ViewModel.Keyword))
+        {
+            <span>Hãy tải tài liệu tại <a asp-page="/Subjects/Index">Môn học</a> trước.</span>
+        }
+        else
+        {
+            <span>Thử từ khóa tìm kiếm khác.</span>
+        }
+    </div>
+}
+else
+{
+    <p class="text-muted">Tìm thấy @Model.ViewModel.Chunks.Count đoạn văn.</p>
+    <table class="table table-sm table-hover">
+        <thead>
+            <tr>
+                <th>Chương</th>
+                <th>Tài liệu</th>
+                <th>Thứ tự</th>
+                <th>Xem trước</th>
+                @if (User.IsInRole(Roles.Admin))
+                {
+                    <th>Nhúng</th>
+                }
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var c in Model.ViewModel.Chunks)
+        {
+            <tr>
+                <td>@c.ChapterName</td>
+                <td>@c.DocumentName</td>
+                <td>@c.ChunkIndex</td>
+                <td>@(c.Content.Length > 80 ? c.Content[..80] + "..." : c.Content)</td>
+                @if (User.IsInRole(Roles.Admin))
+                {
+                    <td>@(c.HasEmbedding ? "Có" : "Không")</td>
+                }
+                <td class="text-nowrap">
+                    <a asp-page="Details" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Chi tiết</a>
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

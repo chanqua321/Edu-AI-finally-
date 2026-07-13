@@ -1,0 +1,20 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Chunks.DetailsModel
+@{ ViewData["Title"] = "Chi tiết đoạn văn"; var c = Model.ViewModel.Chunk!; }
+
+<h2>Đoạn #@c.ChunkIndex</h2>
+
+<dl class="row">
+    <dt class="col-sm-3">Môn học</dt><dd class="col-sm-9">@c.SubjectName</dd>
+    <dt class="col-sm-3">Chương</dt><dd class="col-sm-9">@c.ChapterName</dd>
+    <dt class="col-sm-3">Tài liệu</dt><dd class="col-sm-9">@c.DocumentName</dd>
+</dl>
+
+<div class="card mb-3">
+    <div class="card-header">Nội dung đoạn văn</div>
+    <div class="card-body"><pre class="mb-0">@c.Content</pre></div>
+</div>
+
+<div class="d-flex gap-2">
+    <a asp-page="Index" asp-route-subjectId="@c.SubjectId" class="btn btn-secondary">Quay lại</a>
+</div>
