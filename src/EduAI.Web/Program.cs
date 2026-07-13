@@ -12,8 +12,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text.Json;
+using DotNetEnv;
+
+//Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddEnvironmentVariables();
 
 // Align server request limits with AppSettings:MaxUploadBytes (otherwise large uploads may fail with 413).
 var maxUploadBytes = builder.Configuration.GetSection("AppSettings").GetValue<long>("MaxUploadBytes", 52_428_800);
