@@ -1,0 +1,23 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Chat.EditModel
+@{ ViewData["Title"] = "Sửa phiên chat"; }
+<h2>Sửa phiên chat</h2>
+<p class="text-muted">Môn: <strong>@Model.Input.SubjectName</strong></p>
+<form method="post">
+    <input type="hidden" asp-for="Input.SessionId" />
+    <input type="hidden" asp-for="Input.SubjectName" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div class="mb-3">
+        <label asp-for="Input.Title" class="form-label">Tên phiên</label>
+        <input asp-for="Input.Title" class="form-control" />
+        <span asp-validation-for="Input.Title" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Lưu</button>
+    <a asp-page="Details" asp-route-id="@Model.Input.SessionId" class="btn btn-secondary">Hủy</a>
+</form>
+<hr />
+<form method="post" asp-page-handler="Delete" asp-route-id="@Model.Input.SessionId" onsubmit="return confirm('Xóa phiên chat và tất cả tin nhắn?');">
+    <button type="submit" class="btn btn-outline-danger">Xóa phiên</button>
+</form>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }
