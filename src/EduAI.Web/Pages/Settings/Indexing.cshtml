@@ -1,0 +1,55 @@
+@page
+@model EduAI.Web.Pages.Settings.IndexingModel
+@{
+    ViewData["Title"] = "Cấu hình chia chunk";
+}
+
+<h2>Cấu hình chia chunk</h2>
+<p class="text-muted">
+    Thiết lập cách hệ thống chia nội dung tài liệu thành các đoạn (chunk) khi index cho chatbot RAG.
+    Chỉ áp dụng cho tài liệu được index sau khi lưu — tài liệu cũ cần <strong>xử lý lại</strong> trên trang Chi tiết tài liệu.
+</p>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success">@Model.SuccessMessage</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Input.ChunkSize" class="form-label"></label>
+        <input asp-for="Input.ChunkSize" class="form-control" type="number" min="200" max="8000" />
+        <div class="form-text">Số ký tự tối đa trong mỗi đoạn. Mặc định: 800.</div>
+        <span asp-validation-for="Input.ChunkSize" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Input.ChunkOverlap" class="form-label"></label>
+        <input asp-for="Input.ChunkOverlap" class="form-control" type="number" min="0" max="2000" />
+        <div class="form-text">Số ký tự chồng lấp giữa hai đoạn liên tiếp, giúp giữ ngữ cảnh. Mặc định: 120.</div>
+        <span asp-validation-for="Input.ChunkOverlap" class="text-danger"></span>
+    </div>
+
+    @if (Model.LastUpdatedAt.HasValue)
+    {
+        <p class="text-muted small">
+            Cập nhật lần cuối: @Model.LastUpdatedAt.Value.ToLocalTime().ToString("g")
+            @if (!string.IsNullOrEmpty(Model.LastUpdatedBy))
+            {
+                <text> — @Model.LastUpdatedBy</text>
+            }
+        </p>
+    }
+
+    <button type="submit" class="btn btn-primary">Lưu cấu hình</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
