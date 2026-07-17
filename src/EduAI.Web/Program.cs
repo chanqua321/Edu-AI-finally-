@@ -12,8 +12,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text.Json;
+using DotNetEnv;
+
+//Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.AddEnvironmentVariables();
 
 // Kestrel ceiling is intentionally high; business validation uses SystemSettings.MaxUploadFileSizeBytes.
 const long uploadRequestCeilingBytes = 209_715_200; // 200 MB

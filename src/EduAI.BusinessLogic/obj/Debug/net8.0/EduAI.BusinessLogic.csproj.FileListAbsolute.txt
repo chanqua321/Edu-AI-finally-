@@ -1,0 +1,16 @@
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\bin\Debug\net8.0\EduAI.BusinessLogic.deps.json
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\bin\Debug\net8.0\EduAI.BusinessLogic.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\bin\Debug\net8.0\EduAI.BusinessLogic.pdb
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\bin\Debug\net8.0\EduAI.Model.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\bin\Debug\net8.0\EduAI.Model.pdb
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.csproj.AssemblyReference.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.AssemblyInfoInputs.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.AssemblyInfo.cs
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.csproj.CoreCompileInputs.cache
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.sourcelink.json
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.Bu.D58059A6.Up2Date
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\refint\EduAI.BusinessLogic.dll
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\EduAI.BusinessLogic.pdb
+C:\Users\HP\Desktop\sandbox_prn222\Edu-AI-finally-\src\EduAI.BusinessLogic\obj\Debug\net8.0\ref\EduAI.BusinessLogic.dll
