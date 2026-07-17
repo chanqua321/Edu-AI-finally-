@@ -23,7 +23,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<IndexingSettings> IndexingSettings => Set<IndexingSettings>();
+    public DbSet<SystemSettings> SystemSettings => Set<SystemSettings>();
+    public DbSet<AiUsageLog> AiUsageLogs => Set<AiUsageLog>();
+    public DbSet<PaymentPackage> PaymentPackages => Set<PaymentPackage>();
+    public DbSet<UserSubscription> UserSubscriptions => Set<UserSubscription>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -153,15 +157,91 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .OnDelete(DeleteBehavior.SetNull);
         });
 
-        builder.Entity<IndexingSettings>(entity =>
+        builder.Entity<SystemSettings>(entity =>
         {
             entity.HasKey(s => s.Id);
-            entity.Property(s => s.ChunkSize).IsRequired();
-            entity.Property(s => s.ChunkOverlap).IsRequired();
+            entity.Property(s => s.DefaultChunkSize).IsRequired();
+            entity.Property(s => s.DefaultChunkOverlap).IsRequired();
+            entity.Property(s => s.AllowedFileExtensions).HasMaxLength(500);
+            entity.Property(s => s.DefaultTimezone).HasMaxLength(100);
+            entity.Property(s => s.DefaultEmbeddingModel).HasMaxLength(200);
+            entity.Property(s => s.DefaultGenerationModel).HasMaxLength(200);
+            entity.Property(s => s.GenerationProvider).HasMaxLength(50);
+            entity.Property(s => s.InputTokenPricePerMillion).HasPrecision(18, 6);
+            entity.Property(s => s.OutputTokenPricePerMillion).HasPrecision(18, 6);
+            entity.Property(s => s.EmbeddingPricePerMillion).HasPrecision(18, 6);
+            entity.Property(s => s.Temperature).HasPrecision(4, 2);
             entity.HasOne(s => s.UpdatedBy)
                 .WithMany()
                 .HasForeignKey(s => s.UpdatedByUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<AiUsageLog>(entity =>
+        {
+            entity.HasIndex(l => new { l.SubjectId, l.CreatedAt });
+            entity.Property(l => l.Operation).HasMaxLength(64);
+            entity.Property(l => l.Model).HasMaxLength(128);
+            entity.Property(l => l.Provider).HasMaxLength(50);
+            entity.Property(l => l.EstimatedCostUsd).HasPrecision(18, 6);
+            entity.HasOne(l => l.Subject)
+                .WithMany()
+                .HasForeignKey(l => l.SubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(l => l.ChatSession)
+                .WithMany()
+                .HasForeignKey(l => l.ChatSessionId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(l => l.ChatMessage)
+                .WithMany()
+                .HasForeignKey(l => l.ChatMessageId)
+                .OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<PaymentPackage>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Name).HasMaxLength(100).IsRequired();
+            entity.Property(p => p.Price).HasPrecision(18, 2);
+            entity.Property(p => p.Description).HasMaxLength(1000);
+            entity.Property(p => p.DurationDays).IsRequired();
+            entity.Property(p => p.DisplayOrder).IsRequired();
+            entity.Property(p => p.IsRecommended).IsRequired();
+            entity.Property(p => p.IsActive).IsRequired();
+        });
+
+        builder.Entity<UserSubscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.HasOne(s => s.User)
+                .WithMany()
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(s => s.Package)
+                .WithMany()
+                .HasForeignKey(s => s.PackageId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PaymentTransaction>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Amount).HasPrecision(18, 2);
+            entity.Property(t => t.Status).HasMaxLength(20).IsRequired();
+            entity.Property(t => t.PaymentProvider).HasMaxLength(50).IsRequired();
+            entity.Property(t => t.ProviderTransactionId).HasMaxLength(100);
+            entity.HasOne(t => t.User)
+                .WithMany()
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(t => t.Package)
+                .WithMany()
+                .HasForeignKey(t => t.PackageId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

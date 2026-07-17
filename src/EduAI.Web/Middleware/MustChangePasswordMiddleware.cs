@@ -14,6 +14,7 @@ public class MustChangePasswordMiddleware
 
     public async Task InvokeAsync(HttpContext context, UserManager<ApplicationUser> userManager)
     {
+        // SignalR negotiate/connect stays exempt (redirect breaks hubs). Hub methods enforce MustChangePassword.
         if (context.User.Identity?.IsAuthenticated != true || IsExemptPath(context.Request.Path))
         {
             await _next(context);
@@ -39,6 +40,9 @@ public class MustChangePasswordMiddleware
             || path.StartsWithSegments("/Account/ResendEmailConfirmation", StringComparison.OrdinalIgnoreCase)
             || path.StartsWithSegments("/Account/AccessDenied", StringComparison.OrdinalIgnoreCase)
             || path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/css", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/js", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWithSegments("/lib", StringComparison.OrdinalIgnoreCase)
             || path.StartsWithSegments("/Error", StringComparison.OrdinalIgnoreCase))
             return true;
 

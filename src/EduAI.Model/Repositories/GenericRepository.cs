@@ -30,7 +30,33 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public virtual async Task AddAsync(T entity) =>
         await DbSet.AddAsync(entity);
 
-    public virtual void Update(T entity) => DbSet.Update(entity);
+    public virtual void Update(T entity)
+    {
+        var entry = Context.Entry(entity);
+        var primaryKey = entry.Metadata.FindPrimaryKey();
+        if (primaryKey != null)
+        {
+            var keyValues = primaryKey.Properties
+                .Select(p => entry.Property(p.Name).CurrentValue)
+                .ToArray();
+
+            var local = DbSet.Local.FirstOrDefault(localEntity =>
+            {
+                var localEntry = Context.Entry(localEntity);
+                var localKeyValues = primaryKey.Properties
+                    .Select(p => localEntry.Property(p.Name).CurrentValue)
+                    .ToArray();
+                return keyValues.SequenceEqual(localKeyValues);
+            });
+
+            if (local != null)
+            {
+                Context.Entry(local).State = EntityState.Detached;
+            }
+        }
+
+        DbSet.Update(entity);
+    }
 
     public virtual void Remove(T entity) => DbSet.Remove(entity);
 }

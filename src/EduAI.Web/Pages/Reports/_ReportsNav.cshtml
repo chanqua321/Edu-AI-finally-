@@ -1,0 +1,27 @@
+@using EduAI.Model.Constants
+@{
+    var page = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+    var isAnalytics = page.Equals("/Reports/Index", StringComparison.OrdinalIgnoreCase);
+    var isBenchmark = page.StartsWith("/Reports/Benchmarks", StringComparison.OrdinalIgnoreCase);
+    var isLogs = page.StartsWith("/Reports/AiRequestLog", StringComparison.OrdinalIgnoreCase);
+    var isAdmin = User.IsInRole(Roles.Admin);
+}
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+    <div class="btn-group" role="group" aria-label="Mục báo cáo">
+        <a asp-page="/Reports/Index"
+           class="btn btn-sm @(isAnalytics ? "btn-primary" : "btn-outline-secondary")">
+            Phân tích hệ thống
+        </a>
+        @if (isAdmin)
+        {
+            <a asp-page="/Reports/Benchmarks"
+               class="btn btn-sm @(isBenchmark ? "btn-primary" : "btn-outline-secondary")">
+                Benchmark AI
+            </a>
+            <a asp-page="/Reports/AiRequestLogs"
+               class="btn btn-sm @(isLogs ? "btn-primary" : "btn-outline-secondary")">
+                Nhật ký AI
+            </a>
+        }
+    </div>
+</div>

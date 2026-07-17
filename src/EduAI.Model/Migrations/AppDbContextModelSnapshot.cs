@@ -22,6 +22,89 @@ namespace EduAI.Model.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("EduAI.Model.Entities.AiUsageLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ChatMessageId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ChatSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CompletionTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("EmbeddingTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("EstimatedCostUsd")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("GenerationTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("PromptTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Provider")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("RetrievalTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubjectId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalTimeMs")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChatMessageId");
+
+                    b.HasIndex("ChatSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("SubjectId", "CreatedAt");
+
+                    b.ToTable("AiUsageLogs");
+                });
+
             modelBuilder.Entity("EduAI.Model.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -174,6 +257,9 @@ namespace EduAI.Model.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Citations")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CitedChunkIds")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Content")
@@ -384,33 +470,6 @@ namespace EduAI.Model.Migrations
                     b.ToTable("DocumentEmbeddings");
                 });
 
-            modelBuilder.Entity("EduAI.Model.Entities.IndexingSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChunkOverlap")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ChunkSize")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedByUserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UpdatedByUserId");
-
-                    b.ToTable("IndexingSettings");
-                });
-
             modelBuilder.Entity("EduAI.Model.Entities.Lesson", b =>
                 {
                     b.Property<int>("Id")
@@ -442,6 +501,94 @@ namespace EduAI.Model.Migrations
                         .IsUnique();
 
                     b.ToTable("Lessons");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.PaymentPackage", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("DailyOllamaQuestions")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DurationDays")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRecommended")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MaxDailyQuestions")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MonthlyGeminiQuestions")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PaymentPackages");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.PaymentTransaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PackageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("PaymentProvider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProviderTransactionId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PaymentTransactions");
                 });
 
             modelBuilder.Entity("EduAI.Model.Entities.Subject", b =>
@@ -518,6 +665,145 @@ namespace EduAI.Model.Migrations
                     b.HasIndex("SubjectId", "Status");
 
                     b.ToTable("SubjectAssignments");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.SystemSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AllowedFileExtensions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("CountFailedRequestsAgainstQuota")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DailyQuotaResetHour")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultChunkMode")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultChunkOverlap")
+                        .HasColumnType("int");
+
+                    b.Property<int>("DefaultChunkSize")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DefaultEmbeddingModel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DefaultGenerationModel")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("DefaultTimezone")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("EmbeddingPricePerMillion")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<bool>("EnableBenchmarkLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableCitation")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableCostLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableLatencyLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("EnableTokenLogging")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("GenerationProvider")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("InputTokenPricePerMillion")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("MaxChatHistory")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxOutputTokens")
+                        .HasColumnType("int");
+
+                    b.Property<long>("MaxUploadFileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("OutputTokenPricePerMillion")
+                        .HasPrecision(18, 6)
+                        .HasColumnType("decimal(18,6)");
+
+                    b.Property<int>("RetrievalTopK")
+                        .HasColumnType("int");
+
+                    b.Property<double>("Temperature")
+                        .HasPrecision(4, 2)
+                        .HasColumnType("float(4)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedByUserId");
+
+                    b.ToTable("SystemSettings");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.UserSubscription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PackageId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PackageId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserSubscriptions");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -653,6 +939,38 @@ namespace EduAI.Model.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("EduAI.Model.Entities.AiUsageLog", b =>
+                {
+                    b.HasOne("EduAI.Model.Entities.ChatMessage", "ChatMessage")
+                        .WithMany()
+                        .HasForeignKey("ChatMessageId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("EduAI.Model.Entities.ChatSession", "ChatSession")
+                        .WithMany()
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("EduAI.Model.Entities.Subject", "Subject")
+                        .WithMany()
+                        .HasForeignKey("SubjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EduAI.Model.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ChatMessage");
+
+                    b.Navigation("ChatSession");
+
+                    b.Navigation("Subject");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("EduAI.Model.Entities.AuditLog", b =>
                 {
                     b.HasOne("EduAI.Model.Entities.ApplicationUser", "User")
@@ -784,16 +1102,6 @@ namespace EduAI.Model.Migrations
                     b.Navigation("Chunk");
                 });
 
-            modelBuilder.Entity("EduAI.Model.Entities.IndexingSettings", b =>
-                {
-                    b.HasOne("EduAI.Model.Entities.ApplicationUser", "UpdatedBy")
-                        .WithMany()
-                        .HasForeignKey("UpdatedByUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("UpdatedBy");
-                });
-
             modelBuilder.Entity("EduAI.Model.Entities.Lesson", b =>
                 {
                     b.HasOne("EduAI.Model.Entities.Chapter", "Chapter")
@@ -803,6 +1111,25 @@ namespace EduAI.Model.Migrations
                         .IsRequired();
 
                     b.Navigation("Chapter");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.PaymentTransaction", b =>
+                {
+                    b.HasOne("EduAI.Model.Entities.PaymentPackage", "Package")
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EduAI.Model.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Package");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("EduAI.Model.Entities.Subject", b =>
@@ -832,6 +1159,35 @@ namespace EduAI.Model.Migrations
                     b.Navigation("Subject");
 
                     b.Navigation("Teacher");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.SystemSettings", b =>
+                {
+                    b.HasOne("EduAI.Model.Entities.ApplicationUser", "UpdatedBy")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("UpdatedBy");
+                });
+
+            modelBuilder.Entity("EduAI.Model.Entities.UserSubscription", b =>
+                {
+                    b.HasOne("EduAI.Model.Entities.PaymentPackage", "Package")
+                        .WithMany()
+                        .HasForeignKey("PackageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EduAI.Model.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Package");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

@@ -13,10 +13,12 @@ namespace EduAI.Web.Pages.Account;
 public class ProfileModel : PageModel
 {
     private readonly IUserManagementService _userService;
+    private readonly IPaymentService _paymentService;
 
-    public ProfileModel(IUserManagementService userService)
+    public ProfileModel(IUserManagementService userService, IPaymentService paymentService)
     {
         _userService = userService;
+        _paymentService = paymentService;
     }
 
     [BindProperty]
@@ -25,6 +27,7 @@ public class ProfileModel : PageModel
     public string? SuccessMessage { get; set; }
     public string? ErrorMessage { get; set; }
     public string? ActiveSection { get; set; }
+    public AiProviderQuotaOverviewDto ProviderQuotaOverview { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(string? saved, string? passwordChanged, string? section, string? force)
     {
@@ -124,6 +127,8 @@ public class ProfileModel : PageModel
         Input.Email = user.Email;
         Input.Role = user.Role;
         Input.IsAdmin = user.Role == Roles.Admin;
+        if (user.Role == Roles.Student)
+            ProviderQuotaOverview = await _paymentService.GetAiProviderQuotaOverviewAsync(userId);
 
         return null;
     }
@@ -138,6 +143,8 @@ public class ProfileModel : PageModel
         Input.Id = user.Id;
         Input.Role = user.Role;
         Input.IsAdmin = user.Role == Roles.Admin;
+        if (user.Role == Roles.Student)
+            ProviderQuotaOverview = await _paymentService.GetAiProviderQuotaOverviewAsync(userId);
 
         // Preserve what user typed on POST when validation fails.
         if (!preserveProfileInputs)

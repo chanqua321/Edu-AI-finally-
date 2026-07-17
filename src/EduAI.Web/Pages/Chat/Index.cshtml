@@ -15,6 +15,11 @@
     <a asp-page="Create" class="btn btn-primary">+ Phiên chat mới</a>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success mb-3" role="alert">@Model.SuccessMessage</div>
+}
+
 <div id="subject-realtime-toast" class="alert alert-info d-none mb-3" role="alert"></div>
 
 <div id="chat-subjects-section" class="@(Model.ViewModel.Subjects.Count > 0 ? "" : "d-none")">

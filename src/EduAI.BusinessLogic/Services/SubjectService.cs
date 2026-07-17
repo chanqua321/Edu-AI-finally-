@@ -34,7 +34,7 @@ public class SubjectService : ISubjectService
             Roles.Admin => await _unitOfWork.Subjects.GetAllWithTeacherAsync(includeInactive: true),
             Roles.Teacher => string.IsNullOrEmpty(userId)
                 ? Array.Empty<Subject>()
-                : await _unitOfWork.Subjects.GetByTeacherIdAsync(userId),
+                : await _unitOfWork.Subjects.GetForTeacherWithHistoryAsync(userId),
             Roles.Student => studentIndexedOnly
                 ? await GetSubjectsWithIndexedMaterialsAsync()
                 : await GetSubjectsWithDocumentsAsync(),

@@ -1,0 +1,172 @@
+@page
+@model EduAI.Web.Pages.Payment.ReturnModel
+@{
+    ViewData["Title"] = Model.IsSuccess ? "Hóa đơn thanh toán" : "Kết quả thanh toán";
+}
+
+<div class="container py-5 payment-return">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-lg overflow-hidden payment-invoice-card">
+                @if (Model.IsSuccess)
+                {
+                    <div class="p-4 p-md-5 text-center payment-invoice-success">
+                        <div class="display-6 mb-3">&#10003;</div>
+                        <h2 class="fw-bold mb-2">Thanh toán thành công</h2>
+                        <p class="mb-0 opacity-90">Hóa đơn kích hoạt gói cước EduAI</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="p-4 p-md-5 text-center payment-invoice-failed">
+                        <div class="display-6 mb-3">&#10006;</div>
+                        <h2 class="fw-bold mb-2">Thanh toán thất bại</h2>
+                        <p class="mb-0 opacity-90">Giao dịch chưa được hoàn tất</p>
+                    </div>
+                }
+
+                <div class="card-body p-4 p-md-5 bg-white">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4 pb-3 border-bottom">
+                        <div>
+                            <div class="text-muted small text-uppercase fw-semibold">Hóa đơn EduAI</div>
+                            <div class="fw-bold fs-5">@(string.IsNullOrWhiteSpace(Model.PackageName) ? "Gói cước" : Model.PackageName)</div>
+                        </div>
+                        <div class="text-md-end">
+                            <div class="text-muted small">Ngày thanh toán</div>
+                            <div class="fw-semibold">@(Model.PaidAt?.ToString("g") ?? DateTime.Now.ToString("g"))</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-6">
+                            <div class="payment-invoice-box h-100">
+                                <div class="text-muted small mb-1">Khách hàng</div>
+                                <div class="fw-semibold">@(string.IsNullOrWhiteSpace(Model.CustomerName) ? "Sinh viên EduAI" : Model.CustomerName)</div>
+                                @if (!string.IsNullOrWhiteSpace(Model.CustomerEmail))
+                                {
+                                    <div class="small text-muted">@Model.CustomerEmail</div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="payment-invoice-box h-100">
+                                <div class="text-muted small mb-1">Phương thức</div>
+                                <div class="fw-semibold">@Model.PaymentProvider</div>
+                                @if (!string.IsNullOrWhiteSpace(Model.BankCode))
+                                {
+                                    <div class="small text-muted">Ngân hàng: @Model.BankCode</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5 class="fw-bold mb-3">Chi tiết giao dịch</h5>
+                    <div class="table-responsive mb-4">
+                        <table class="table align-middle mb-0">
+                            <tbody>
+                                <tr>
+                                    <td class="text-muted">Trạng thái</td>
+                                    <td class="text-end fw-semibold">
+                                        @if (Model.IsSuccess)
+                                        {
+                                            <span class="text-success">Thành công</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-danger">Thất bại</span>
+                                        }
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Mã đơn hàng</td>
+                                    <td class="text-end fw-semibold font-monospace">@Model.TransactionId</td>
+                                </tr>
+                                @if (!string.IsNullOrEmpty(Model.ProviderTxnId))
+                                {
+                                    <tr>
+                                        <td class="text-muted">Mã giao dịch VNPAY</td>
+                                        <td class="text-end font-monospace">@Model.ProviderTxnId</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Model.PackageId))
+                                {
+                                    <tr>
+                                        <td class="text-muted">Mã gói</td>
+                                        <td class="text-end fw-semibold">@Model.PackageId</td>
+                                    </tr>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(Model.OrderInfo))
+                                {
+                                    <tr>
+                                        <td class="text-muted">Nội dung</td>
+                                        <td class="text-end">@Model.OrderInfo</td>
+                                    </tr>
+                                }
+                                @if (Model.IsSuccess && Model.SubscriptionStart.HasValue && Model.SubscriptionEnd.HasValue)
+                                {
+                                    <tr>
+                                        <td class="text-muted">Thời hạn gói</td>
+                                        <td class="text-end">
+                                            @Model.SubscriptionStart.Value.ToLocalTime().ToString("g")
+                                            &rarr;
+                                            @Model.SubscriptionEnd.Value.ToLocalTime().ToString("g")
+                                        </td>
+                                    </tr>
+                                }
+                                <tr>
+                                    <td class="text-muted fw-semibold">Tổng thanh toán</td>
+                                    <td class="text-end fw-bold fs-5 text-primary">@Model.Amount.ToString("N0") VND</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Message))
+                    {
+                        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") border-0 mb-4" style="border-radius: 10px;">
+                            @Model.Message
+                        </div>
+                    }
+
+                    <div class="d-flex flex-wrap gap-2 justify-content-center pt-2">
+                        @if (Model.IsSuccess)
+                        {
+                            <a asp-page="/Chat/Index" class="btn btn-primary px-4 py-2.5 rounded-3 fw-semibold">
+                                Vào Chat AI
+                            </a>
+                            <a asp-page="/Payment/Packages" class="btn btn-outline-primary px-4 py-2.5 rounded-3 fw-semibold">
+                                Xem gói cước
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-page="/Payment/Packages" class="btn btn-primary px-4 py-2.5 rounded-3 fw-semibold">
+                                Thử thanh toán lại
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .payment-invoice-card {
+        border-radius: 20px;
+    }
+    .payment-invoice-success {
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+        color: #fff;
+    }
+    .payment-invoice-failed {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: #fff;
+    }
+    .payment-invoice-box {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+    }
+</style>

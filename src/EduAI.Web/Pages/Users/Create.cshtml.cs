@@ -42,7 +42,8 @@ public class CreateModel : PageModel
             FullName = Input.FullName,
             Email = Input.Email,
             UserName = Input.Email.Trim(),
-            Role = Input.Role
+            Role = Input.Role,
+            Password = Input.Password
         }, adminId, IpAddressHelper.GetClientIp(HttpContext));
 
         if (!result.Success)

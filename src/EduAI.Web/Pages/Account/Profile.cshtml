@@ -25,6 +25,25 @@
     </dl>
 </div>
 
+@if (Model.Input.Role == Roles.Student && Model.ProviderQuotaOverview.Providers.Count > 0)
+{
+    <div class="panel-card panel-card-body mb-3">
+        <h5 class="mb-3">Lượt AI còn lại</h5>
+        <div class="row g-3">
+            @foreach (var provider in Model.ProviderQuotaOverview.Providers)
+            {
+                <div class="col-md-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="small text-muted text-uppercase">@provider.DisplayName</div>
+                        <div class="fw-semibold mt-1">@provider.StatusText</div>
+                        <div class="small text-muted mt-1">Chu kỳ: @provider.WindowLabel</div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @if (!Model.Input.IsAdmin)
 {
     <div class="d-flex flex-wrap gap-2 mb-3">

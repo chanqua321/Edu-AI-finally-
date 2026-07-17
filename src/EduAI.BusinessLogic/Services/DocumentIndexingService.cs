@@ -6,6 +6,8 @@ using EduAI.Model.DTOs;
 using EduAI.Model.Entities;
 using EduAI.Model.Enums;
 using EduAI.Model.IRepository;
+using EduAI.Model.Settings;
+using Microsoft.Extensions.Options;
 
 namespace EduAI.BusinessLogic.Services;
 
@@ -16,7 +18,9 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
     private readonly INotificationService _notificationService;
     private readonly ISubjectService _subjectService;
     private readonly ISubjectNotificationService _subjectNotificationService;
-    private readonly IIndexingSettingsService _indexingSettingsService;
+    private readonly ISystemSettingsService _systemSettingsService;
+    // appsettings: "AiRuntime:EmbeddingModel" → model Gemini dùng khi index/chunk tài liệu thành vector.
+    private readonly AiRuntimeSettings _aiRuntime;
 
     public DocumentIndexingService(
         IUnitOfWork unitOfWork,
@@ -24,14 +28,16 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
         INotificationService notificationService,
         ISubjectService subjectService,
         ISubjectNotificationService subjectNotificationService,
-        IIndexingSettingsService indexingSettingsService)
+        ISystemSettingsService systemSettingsService,
+        IOptions<AiRuntimeSettings> aiRuntime)
     {
         _unitOfWork = unitOfWork;
         _geminiAiService = geminiAiService;
         _notificationService = notificationService;
         _subjectService = subjectService;
         _subjectNotificationService = subjectNotificationService;
-        _indexingSettingsService = indexingSettingsService;
+        _systemSettingsService = systemSettingsService;
+        _aiRuntime = aiRuntime.Value;
     }
 
     public async Task IndexAsync(int documentId, string? ipAddress, CancellationToken cancellationToken = default)
@@ -54,8 +60,7 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
 
         try
         {
-            // Idempotent: clear any partial/previous index so a re-queue (e.g. after a restart)
-            // does not create duplicate chunks/embeddings.
+            // Idempotent: clear any partial/previous index so a re-queue does not create duplicates.
             await ClearExistingIndexAsync(document);
 
             int chunkCount;
@@ -67,13 +72,19 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
             await NotifyProgressAsync(documentId, "ChunksCreated", new { status = "Processing", chunkCount, embedded = 0 });
 
             var createdChunks = await _unitOfWork.Chunks.GetByDocumentIdAsync(documentId);
+            var systemSettings = await _systemSettingsService.GetAsync();
+            var embedCharLimit = Math.Max(systemSettings.DefaultChunkSize * 10, 1000);
+            var embedOptions = new GeminiGenerationOptions
+            {
+                EmbeddingModel = _aiRuntime.EmbeddingModel
+            };
             var embedded = 0;
             foreach (var chunk in createdChunks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var embedInput = chunk.Content.Length > 8000 ? chunk.Content[..8000] : chunk.Content;
-                var vector = await _geminiAiService.EmbedTextAsync(embedInput);
+                var embedInput = chunk.Content.Length > embedCharLimit ? chunk.Content[..embedCharLimit] : chunk.Content;
+                var vector = await _geminiAiService.EmbedTextAsync(embedInput, embedOptions);
                 await _unitOfWork.Embeddings.AddAsync(new DocumentEmbedding
                 {
                     ChunkId = chunk.Id,
@@ -142,8 +153,16 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
         if (string.IsNullOrWhiteSpace(text))
             throw new InvalidOperationException("Không tìm thấy nội dung văn bản có thể đọc trong file đã tải lên.");
 
-        var indexingSettings = await _indexingSettingsService.GetAsync();
-        var textChunks = DocumentTextExtractor.ChunkText(text, indexingSettings.ChunkSize, indexingSettings.ChunkOverlap);
+        // Size/overlap from SystemSettings (admin); chunk strategy fixed to Character
+        var systemSettings = await _systemSettingsService.GetAsync();
+        var chunkMode = ChunkMode.Character;
+        var textChunks = DocumentTextExtractor.ChunkText(
+            text,
+            chunkMode,
+            systemSettings.DefaultChunkSize,
+            systemSettings.DefaultChunkOverlap,
+            useCharacterFallback: true);
+
         if (textChunks.Count == 0)
             throw new InvalidOperationException("Không thể chia nội dung tài liệu thành các đoạn (chunk).");
 
@@ -188,4 +207,3 @@ public sealed class DocumentIndexingService : IDocumentIndexingService
         });
     }
 }
-

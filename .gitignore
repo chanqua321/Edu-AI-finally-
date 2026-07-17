@@ -31,3 +31,17 @@ Desktop.ini
 chia-viec-4-nguoi/
 gui-zalo-nhom/
 
+# Local build / benchmark outputs
+_bench_build/
+_pkg_build/
+_webout/
+_webout_bench/
+*_build_log.txt
+_quota_build.txt
+
+# Draw.io temp files
+docs/.$*
+
+# User uploads
+src/EduAI.Web/uploads/
+

@@ -35,5 +35,5 @@ public static class AuditActions
     public const string AiResponseError = "AIResponseError";
     public const string EmailSendFailed = "EmailSendFailed";
     public const string EmailConfirmationResent = "EmailConfirmationResent";
-    public const string UpdateIndexingSettings = "UpdateIndexingSettings";
+    public const string UpdateSystemSettings = "UpdateSystemSettings";
 }

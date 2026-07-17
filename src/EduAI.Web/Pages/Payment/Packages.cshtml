@@ -1,0 +1,198 @@
+@page
+@model EduAI.Web.Pages.Payment.PackagesModel
+@using EduAI.Model.Constants
+@{
+    ViewData["Title"] = "Gói cước học tập";
+    var currentPackageId = Model.CurrentSubscription?.PackageId;
+    var currentRank = PaymentPackageRanks.GetRank(currentPackageId);
+}
+
+<div class="container py-5 payment-packages">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-gradient">Nâng Tầm Học Tập Cùng EduAI</h1>
+        <p class="lead text-muted">Mở khóa sức mạnh AI RAG để ôn tập môn học hiệu quả hơn</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success border-0 shadow-sm mb-4" role="alert" style="border-radius: 12px;">
+            @Model.SuccessMessage
+        </div>
+    }
+
+    @if (Model.CurrentSubscription != null)
+    {
+        <div class="card border-0 shadow-lg mb-5 overflow-hidden payment-active-card">
+            <div class="card-body p-4 p-md-5">
+                <div class="row align-items-center">
+                    <div class="col-md-8 mb-3 mb-md-0">
+                        <span class="badge payment-active-badge mb-2 px-3 py-2 fw-semibold">GÓI ĐANG KÍCH HOẠT</span>
+                        <h2 class="fw-bold mb-1">@(string.IsNullOrWhiteSpace(Model.ProviderQuotaOverview.PackageName) ? Model.CurrentSubscription.PackageId : Model.ProviderQuotaOverview.PackageName)</h2>
+                        <p class="mb-0 opacity-75">
+                            Thời hạn sử dụng: @Model.CurrentSubscription.StartDate.ToLocalTime().ToString("g")
+                            &rarr; <strong>@Model.CurrentSubscription.EndDate.ToLocalTime().ToString("g")</strong>
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <a asp-page="/Chat/Index" class="btn btn-light fw-semibold px-4 py-2 rounded-3">Vào Chat AI</a>
+                    </div>
+                </div>
+                @if (Model.ProviderQuotaOverview.Providers.Count > 0)
+                {
+                    <div class="row g-3 mt-3">
+                        @foreach (var provider in Model.ProviderQuotaOverview.Providers)
+                        {
+                            <div class="col-md-6">
+                                <div class="payment-quota-tile rounded-3 p-3 h-100">
+                                    <div class="small text-uppercase opacity-75">@provider.DisplayName</div>
+                                    <div class="fs-5 fw-bold mt-1">@provider.StatusText</div>
+                                    <div class="small opacity-75 mt-1">Chu kỳ: @provider.WindowLabel</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-5" role="alert" style="border-radius: 12px;">
+            <div class="fs-4 me-3">&#9888;</div>
+            <div>
+                Bạn chưa kích hoạt gói cước nào. Tài khoản Sinh viên đăng ký mới được gán mặc định gói <strong>Free</strong>.
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger border-0 shadow-sm mb-4" role="alert" style="border-radius: 12px;">
+            @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="row g-4 justify-content-center">
+        @foreach (var pkg in Model.Packages)
+        {
+            var isCurrent = currentPackageId == pkg.Id;
+            var isPremium = pkg.Id == PaymentPackageIds.Premium;
+            var isEnterprise = pkg.Id == PaymentPackageIds.Enterprise;
+            var isFree = pkg.Id == PaymentPackageIds.Free;
+            var packageRank = PaymentPackageRanks.GetRank(pkg.Id);
+            var isDowngrade = currentRank > packageRank;
+            var cardStyle = isPremium
+                ? "border: 2px solid var(--primary); background: var(--surface);"
+                : "border: 1px solid var(--border); background: var(--surface);";
+
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm border-0 position-relative overflow-hidden hover-card" style="border-radius: 16px; @cardStyle">
+                    @if (isPremium)
+                    {
+                        <div class="position-absolute top-0 end-0 text-white px-3 py-1 small fw-semibold payment-popular-badge">
+                            PHỔ BIẾN NHẤT
+                        </div>
+                    }
+                    <div class="card-body p-4 d-flex flex-column">
+                        <h3 class="fw-bold mb-1">@pkg.Name</h3>
+                        <p class="text-muted small mb-4">@pkg.Description</p>
+
+                        <div class="mb-4">
+                            <span class="display-6 fw-bold">@pkg.Price.ToString("N0")</span>
+                            <span class="text-muted"> VND</span>
+                            @if (!isFree)
+                            {
+                                <span class="text-muted small"> / 30 ngày</span>
+                            }
+                        </div>
+
+                        <ul class="list-unstyled mb-5 flex-grow-1">
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="text-success me-2">&#10004;</span>
+                                <span>
+                                    Gemini: <strong>@(pkg.MonthlyGeminiQuestions > 0 ? $"{pkg.MonthlyGeminiQuestions} lượt/tháng" : "Không hỗ trợ")</strong>
+                                </span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="text-success me-2">&#10004;</span>
+                                <span>
+                                    Ollama: <strong>@(pkg.DailyOllamaQuestions > 0 ? $"{pkg.DailyOllamaQuestions} lượt/ngày" : "Không hỗ trợ")</strong>
+                                </span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="text-success me-2">&#10004;</span>
+                                <span>Hỏi đáp thông minh theo môn học</span>
+                            </li>
+                            <li class="mb-3 d-flex align-items-center">
+                                <span class="text-success me-2">&#10004;</span>
+                                <span>Độ trễ thấp, phản hồi AI nhanh chóng</span>
+                            </li>
+                            @if (isEnterprise)
+                            {
+                                <li class="mb-3 d-flex align-items-center">
+                                    <span class="text-success me-2">&#10004;</span>
+                                    <span>Hỗ trợ kỹ thuật 24/7</span>
+                                </li>
+                            }
+                        </ul>
+
+                        <form method="post" asp-page-handler="Buy" asp-route-packageId="@pkg.Id">
+                            @if (isCurrent)
+                            {
+                                <button type="button" class="btn btn-outline-secondary w-100 py-2.5 rounded-3 fw-semibold" disabled>Gói Hiện Tại</button>
+                            }
+                            else if (isDowngrade)
+                            {
+                                <button type="button" class="btn btn-outline-secondary w-100 py-2.5 rounded-3 fw-semibold" disabled>Đã có gói cao hơn</button>
+                            }
+                            else if (isFree)
+                            {
+                                <button type="submit" class="btn btn-outline-primary w-100 py-2.5 rounded-3 fw-semibold">Kích Hoạt</button>
+                            }
+                            else
+                            {
+                                var btnClass = isPremium ? "btn-primary" : "btn-outline-primary";
+                                <button type="submit" class="btn @btnClass w-100 py-2.5 rounded-3 fw-semibold">Mua Ngay</button>
+                            }
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .payment-packages .text-gradient {
+        background: var(--logo-gradient);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .payment-active-card {
+        border-radius: 16px;
+        background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 55%, #0891b2 100%);
+        color: #fff;
+    }
+    .payment-active-badge {
+        background: rgba(255, 255, 255, 0.95);
+        color: var(--primary-hover);
+        font-size: 0.85rem;
+    }
+    .payment-quota-tile {
+        background: rgba(255, 255, 255, 0.16);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+    .payment-popular-badge {
+        background: var(--primary);
+        border-bottom-left-radius: 12px;
+    }
+    .payment-packages .hover-card {
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        background: var(--surface);
+    }
+    .payment-packages .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow) !important;
+    }
+</style>

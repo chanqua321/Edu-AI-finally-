@@ -23,6 +23,17 @@
         <select asp-for="Input.Role" asp-items="Model.RoleOptions" class="form-select"></select>
         <span asp-validation-for="Input.Role" class="text-danger"></span>
     </div>
+    <div class="mb-3">
+        <label asp-for="Input.Password" class="form-label"></label>
+        <input asp-for="Input.Password" class="form-control" />
+        <div class="form-text">Dung de dang nhap khi dang tat gui mail de test.</div>
+        <span asp-validation-for="Input.Password" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+        <input asp-for="Input.ConfirmPassword" class="form-control" />
+        <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+    </div>
     <button type="submit" class="btn btn-primary">Tạo</button>
     <a asp-page="Index" class="btn btn-secondary">Hủy</a>
 </form>

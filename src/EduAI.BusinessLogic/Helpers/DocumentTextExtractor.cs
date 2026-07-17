@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using EduAI.Model.Enums;
 using UglyToad.PdfPig;
 
 namespace EduAI.BusinessLogic.Helpers;
@@ -84,7 +85,97 @@ public static class DocumentTextExtractor
         return Normalize(builder.ToString());
     }
 
+    /// <summary>
+    /// Chunk theo chế độ Teacher (Paragraph/Word) hoặc fallback theo ký tự (Admin global).
+    /// </summary>
     public static IReadOnlyList<string> ChunkText(
+        string text,
+        ChunkMode? mode,
+        int chunkSize,
+        int overlap,
+        bool useCharacterFallback = false)
+    {
+        if (useCharacterFallback || mode == null)
+            return ChunkByCharacters(text, chunkSize, overlap);
+
+        return mode.Value switch
+        {
+            ChunkMode.Paragraph => ChunkByParagraphs(text, chunkSize, overlap),
+            ChunkMode.Word => ChunkByWords(text, chunkSize, overlap),
+            _ => ChunkByCharacters(text, chunkSize, overlap)
+        };
+    }
+
+    /// <summary>Giữ API cũ: chia theo ký tự (Admin global default).</summary>
+    public static IReadOnlyList<string> ChunkText(
+        string text,
+        int chunkSize = DefaultChunkSize,
+        int overlap = DefaultOverlap) =>
+        ChunkByCharacters(text, chunkSize, overlap);
+
+    private static IReadOnlyList<string> ChunkByParagraphs(string text, int maxParagraphs, int overlapParagraphs)
+    {
+        text = Normalize(text);
+        if (string.IsNullOrWhiteSpace(text))
+            return Array.Empty<string>();
+
+        maxParagraphs = Math.Max(1, maxParagraphs);
+        overlapParagraphs = Math.Clamp(overlapParagraphs, 0, maxParagraphs - 1);
+
+        var paragraphs = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (paragraphs.Length == 0)
+            return Array.Empty<string>();
+
+        var chunks = new List<string>();
+        var step = Math.Max(1, maxParagraphs - overlapParagraphs);
+
+        for (var i = 0; i < paragraphs.Length; i += step)
+        {
+            var take = Math.Min(maxParagraphs, paragraphs.Length - i);
+            if (take <= 0)
+                break;
+
+            chunks.Add(string.Join("\n", paragraphs.Skip(i).Take(take)));
+            if (i + take >= paragraphs.Length)
+                break;
+        }
+
+        return chunks.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+    }
+
+    private static IReadOnlyList<string> ChunkByWords(string text, int maxWords, int overlapWords)
+    {
+        text = Normalize(text);
+        if (string.IsNullOrWhiteSpace(text))
+            return Array.Empty<string>();
+
+        maxWords = Math.Max(1, maxWords);
+        overlapWords = Math.Clamp(overlapWords, 0, maxWords - 1);
+
+        var words = Regex.Split(text, @"\s+")
+            .Where(w => !string.IsNullOrWhiteSpace(w))
+            .ToArray();
+        if (words.Length == 0)
+            return Array.Empty<string>();
+
+        var chunks = new List<string>();
+        var step = Math.Max(1, maxWords - overlapWords);
+
+        for (var i = 0; i < words.Length; i += step)
+        {
+            var take = Math.Min(maxWords, words.Length - i);
+            if (take <= 0)
+                break;
+
+            chunks.Add(string.Join(' ', words.Skip(i).Take(take)));
+            if (i + take >= words.Length)
+                break;
+        }
+
+        return chunks.Where(c => !string.IsNullOrWhiteSpace(c)).ToList();
+    }
+
+    private static IReadOnlyList<string> ChunkByCharacters(
         string text,
         int chunkSize = DefaultChunkSize,
         int overlap = DefaultOverlap)
@@ -123,7 +214,7 @@ public static class DocumentTextExtractor
                 continue;
             }
 
-            for (var i = 0; i < paragraph.Length; i += chunkSize - overlap)
+            for (var i = 0; i < paragraph.Length; i += Math.Max(1, chunkSize - overlap))
             {
                 var length = Math.Min(chunkSize, paragraph.Length - i);
                 chunks.Add(paragraph.Substring(i, length));

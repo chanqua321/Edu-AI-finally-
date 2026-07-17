@@ -15,15 +15,15 @@ using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Align server request limits with AppSettings:MaxUploadBytes (otherwise large uploads may fail with 413).
-var maxUploadBytes = builder.Configuration.GetSection("AppSettings").GetValue<long>("MaxUploadBytes", 52_428_800);
+// Kestrel ceiling is intentionally high; business validation uses SystemSettings.MaxUploadFileSizeBytes.
+const long uploadRequestCeilingBytes = 209_715_200; // 200 MB
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = maxUploadBytes;
+    options.Limits.MaxRequestBodySize = uploadRequestCeilingBytes;
 });
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = maxUploadBytes;
+    options.MultipartBodyLengthLimit = uploadRequestCeilingBytes;
 });
 
 if (builder.Environment.IsDevelopment()
@@ -38,11 +38,14 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/AuditLogs", "AdminOnly");
     options.Conventions.AuthorizeFolder("/ChatSessions", "AdminOnly");
     options.Conventions.AuthorizePage("/ChatMessages/Details", "AdminOnly");
-    options.Conventions.AuthorizeFolder("/Chunks", "AdminOnly");
-    options.Conventions.AuthorizePage("/Chunks/Create", "TeacherOnly");
-    options.Conventions.AuthorizePage("/Chunks/Edit", "TeacherOnly");
+    options.Conventions.AuthorizeFolder("/Chunks", "AdminOrTeacher");
+    options.Conventions.AuthorizePage("/Settings/System", "AdminOnly");
+    options.Conventions.AuthorizePage("/Chunks/Create", "AdminOrTeacher");
+    options.Conventions.AuthorizePage("/Chunks/Edit", "AdminOrTeacher");
+    options.Conventions.AllowAnonymousToPage("/Payment/Ipn");
     options.Conventions.AuthorizeFolder("/Chat", "StudentOnly");
     options.Conventions.AuthorizeFolder("/Documents", "AdminOrTeacher");
+    options.Conventions.AuthorizeFolder("/Reports", "AdminOrTeacher");
     // Upload page should be visible to teachers only
     options.Conventions.AuthorizePage("/Documents/Create", "TeacherOnly");
     options.Conventions.AuthorizePage("/Documents/Edit", "TeacherOnly");
@@ -56,6 +59,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Subjects/Edit", "AdminOnly");
     options.Conventions.AuthorizePage("/Account/Profile", "AuthenticatedUser");
     options.Conventions.AllowAnonymousToPage("/Account/Login");
+    options.Conventions.AllowAnonymousToPage("/Account/Register");
     options.Conventions.AllowAnonymousToPage("/Account/AccessDenied");
     options.Conventions.AllowAnonymousToPage("/Account/ConfirmEmail");
     options.Conventions.AllowAnonymousToPage("/Account/ResendEmailConfirmation");
@@ -128,6 +132,32 @@ var app = builder.Build();
 
 await DataSeeder.SeedAsync(app.Services, app.Configuration);
 
+if (args.Contains("--warmup-reports", StringComparer.OrdinalIgnoreCase))
+{
+    using var scope = app.Services.CreateScope();
+    var reports = scope.ServiceProvider.GetRequiredService<IReportService>();
+    var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var teacher = await users.FindByEmailAsync("teacher@gmail.com");
+    var actorId = teacher?.Id ?? string.Empty;
+    var (sessions, questions, error) = await reports.RunRealChatWarmupAsync(actorId, Roles.Teacher);
+    Console.WriteLine(error == null
+        ? $"[warmup-reports] OK: {sessions} sessions, {questions} real Gemini questions"
+        : $"[warmup-reports] FAIL: {error}");
+    return;
+}
+
+if (args.Contains("--demo-upload-chat", StringComparer.OrdinalIgnoreCase))
+{
+    await DemoUploadChatBootstrap.RunAsync(app.Services);
+    return;
+}
+
+if (args.Contains("--benchmark-providers", StringComparer.OrdinalIgnoreCase))
+{
+    await ProviderBenchmarkBootstrap.RunAsync(app.Services);
+    return;
+}
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -145,9 +175,11 @@ app.MapRazorPages();
 app.MapHub<SubjectHub>("/hubs/subjects");
 app.MapHub<UserHub>("/hubs/user");
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<ChatHub>("/hubs/chat");
 
 if (app.Environment.IsDevelopment())
 {
+    // appsettings: "AppSettings:AppBaseUrl" → tự mở browser khi chạy Development.
     var launchUrl = builder.Configuration.GetSection("AppSettings")["AppBaseUrl"] ?? "https://localhost:7014";
     app.Lifetime.ApplicationStarted.Register(() =>
     {

@@ -1,0 +1,744 @@
+@page
+@model EduAI.Web.Pages.Reports.IndexModel
+@using System.Text.Json
+@using EduAI.Model.DTOs
+@{
+    ViewData["Title"] = "Phân tích hệ thống";
+    var d = Model.Dashboard;
+    string FBytes(long b) => b < 1024 * 1024 ? $"{b / 1024.0:0.#} KB" : $"{b / (1024.0 * 1024):0.##} MB";
+    string FUsd(decimal v) => v.ToString("0.######");
+    string FVnd(decimal v) => v.ToString("N0") + " ₫";
+
+    var topCourses = d.ChatActivityBySubject
+        .OrderByDescending(x => x.SessionCount)
+        .ThenByDescending(x => x.QuestionCount)
+        .Take(8)
+        .ToList();
+
+    var costByCourse = d.TokensBySubject
+        .Where(x => x.EstimatedCostUsd > 0)
+        .OrderByDescending(x => x.EstimatedCostUsd)
+        .Take(8)
+        .ToList();
+    if (costByCourse.Count == 0)
+        costByCourse = d.TokensBySubject.OrderByDescending(x => x.TotalTokens).Take(8).ToList();
+
+    var tokenSubjectLabels = JsonSerializer.Serialize(d.TokensBySubject.Select(x => x.SubjectName));
+    var tokenSubjectValues = JsonSerializer.Serialize(d.TokensBySubject.Select(x => x.TotalTokens));
+
+    var activityLabels = JsonSerializer.Serialize(d.ChatActivityBySubject.Select(x => x.SubjectName));
+    var activitySessions = JsonSerializer.Serialize(d.ChatActivityBySubject.Select(x => x.SessionCount));
+    var activityQuestions = JsonSerializer.Serialize(d.ChatActivityBySubject.Select(x => x.QuestionCount));
+
+    var dayLabels = JsonSerializer.Serialize(d.TokensByDay.Select(x => x.Label));
+    var dayTokenValues = JsonSerializer.Serialize(d.TokensByDay.Select(x => x.TotalTokens));
+
+    var chatVolumeLabels = JsonSerializer.Serialize(d.ActivityTrend.Select(x => x.Label));
+    var chatVolumeValues = JsonSerializer.Serialize(d.ActivityTrend.Select(x => x.RequestCount));
+
+    var providerLabels = JsonSerializer.Serialize(d.CostByProvider.Select(x => string.IsNullOrWhiteSpace(x.Provider) ? "Khác" : x.Provider));
+    var providerRequests = JsonSerializer.Serialize(d.CostByProvider.Select(x => x.RequestCount));
+
+    var topCourseLabels = JsonSerializer.Serialize(topCourses.Select(x => x.SubjectName));
+    var topCourseSessions = JsonSerializer.Serialize(topCourses.Select(x => x.SessionCount));
+
+    var costCourseLabels = JsonSerializer.Serialize(costByCourse.Select(x => x.SubjectName));
+    var costCourseValues = JsonSerializer.Serialize(costByCourse.Select(x => Math.Round(x.EstimatedCostUsd * d.UsdToVndRate, 0)));
+
+    var indexedCount = d.IndexedDocuments;
+    var pendingCount = Math.Max(0, d.TotalDocuments - d.IndexedDocuments);
+    var ragReadyLabels = JsonSerializer.Serialize(new[] { "Đã lập chỉ mục", "Chưa lập chỉ mục" });
+    var ragReadyValues = JsonSerializer.Serialize(new[] { indexedCount, pendingCount });
+
+    var timelineTitle = Model.Period switch
+    {
+        ReportPeriods.Day => "Token theo giờ",
+        ReportPeriods.Week => "Token theo ngày (tuần)",
+        ReportPeriods.Custom => "Token theo khoảng chọn",
+        _ => "Token sử dụng theo ngày"
+    };
+
+    var chatVolumeTitle = Model.Period switch
+    {
+        ReportPeriods.Day => "Lượng câu hỏi theo giờ",
+        ReportPeriods.Week => "Lượng câu hỏi theo ngày (tuần)",
+        ReportPeriods.Custom => "Lượng câu hỏi theo khoảng chọn",
+        _ => "Lượng câu hỏi theo ngày"
+    };
+}
+
+<div class="reports-analytics">
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Phân tích hệ thống</h1>
+        <p class="page-subtitle">
+            @(Model.IsAdmin
+                ? "Tổng quan điều hành: mức dùng AI, môn học nổi bật, chi phí và doanh thu."
+                : "Phân tích các môn bạn phụ trách — hoạt động chat, token và tài liệu.")
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form method="get" class="d-flex flex-wrap gap-2 align-items-end" id="report-filter-form">
+            <div>
+                <label class="form-label mb-0 small" for="period">Khoảng</label>
+                <select class="form-select form-select-sm" id="period" name="Period" onchange="onPeriodChange(this)">
+                    @if (Model.Period == ReportPeriods.Day) { <option value="@ReportPeriods.Day" selected>Ngày</option> } else { <option value="@ReportPeriods.Day">Ngày</option> }
+                    @if (Model.Period == ReportPeriods.Week) { <option value="@ReportPeriods.Week" selected>Tuần</option> } else { <option value="@ReportPeriods.Week">Tuần</option> }
+                    @if (Model.Period == ReportPeriods.Month) { <option value="@ReportPeriods.Month" selected>Tháng</option> } else { <option value="@ReportPeriods.Month">Tháng</option> }
+                    @if (Model.Period == ReportPeriods.Custom) { <option value="@ReportPeriods.Custom" selected>Tùy chọn</option> } else { <option value="@ReportPeriods.Custom">Tùy chọn</option> }
+                </select>
+            </div>
+            <div id="custom-range" class="@(Model.Period == ReportPeriods.Custom ? "" : "d-none") d-flex gap-2">
+                <div>
+                    <label class="form-label mb-0 small" for="from">Từ</label>
+                    <input class="form-control form-control-sm" type="date" id="from" name="From"
+                           value="@(Model.From?.ToString("yyyy-MM-dd") ?? d.FromUtc.ToLocalTime().ToString("yyyy-MM-dd"))" />
+                </div>
+                <div>
+                    <label class="form-label mb-0 small" for="to">Đến</label>
+                    <input class="form-control form-control-sm" type="date" id="to" name="To"
+                           value="@(Model.To?.ToString("yyyy-MM-dd") ?? d.ToUtc.ToLocalTime().ToString("yyyy-MM-dd"))" />
+                </div>
+                <button type="submit" class="btn btn-sm btn-primary align-self-end">Áp dụng</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<partial name="_ReportsNav" />
+
+@if (TempData["ReportSuccess"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["ReportError"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+@if (!d.HasAiActivity)
+{
+    <div class="alert alert-info">
+        Chưa có hoạt động AI trong khoảng này (@d.TotalDocuments tài liệu, @d.TotalChunks đoạn đã lập chỉ mục).
+        Hãy để sinh viên hỏi trên Chatbot để có số liệu điều hành.
+    </div>
+}
+
+@* ===== Row 1: KPI ===== *@
+<div class="row g-3 mb-4 analytics-kpi-row">
+    @if (Model.IsAdmin)
+    {
+        <div class="col-6 col-md-3 col-xl">
+            <div class="panel-card h-100 analytics-kpi">
+                <div class="panel-card-body">
+                    <div class="analytics-kpi-label">Người dùng</div>
+                    <div class="analytics-kpi-value">@d.TotalUsers</div>
+                    <div class="analytics-kpi-meta">GV @d.TotalTeachers · SV @d.TotalStudents</div>
+                </div>
+            </div>
+        </div>
+    }
+    <div class="col-6 col-md-3 col-xl">
+        <div class="panel-card h-100 analytics-kpi">
+            <div class="panel-card-body">
+                <div class="analytics-kpi-label">Môn học</div>
+                <div class="analytics-kpi-value">@d.TotalSubjects</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="panel-card h-100 analytics-kpi">
+            <div class="panel-card-body">
+                <div class="analytics-kpi-label">Tài liệu</div>
+                <div class="analytics-kpi-value">@d.TotalDocuments</div>
+                <div class="analytics-kpi-meta">Đã index @d.IndexedDocuments · @FBytes(d.StorageBytes)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="panel-card h-100 analytics-kpi">
+            <div class="panel-card-body">
+                <div class="analytics-kpi-label">Câu hỏi</div>
+                <div class="analytics-kpi-value">@d.TotalQuestions.ToString("N0")</div>
+                <div class="analytics-kpi-meta">@d.TotalChatSessions phiên chat</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="panel-card h-100 analytics-kpi">
+            <div class="panel-card-body">
+                <div class="analytics-kpi-label">Token</div>
+                <div class="analytics-kpi-value">@d.TotalTokens.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl">
+        <div class="panel-card h-100 analytics-kpi">
+            <div class="panel-card-body">
+                <div class="analytics-kpi-label">Đoạn đã lập chỉ mục</div>
+                <div class="analytics-kpi-value">@d.TotalChunks.ToString("N0")</div>
+                <div class="analytics-kpi-meta">Sẵn sàng cho tìm kiếm RAG</div>
+            </div>
+        </div>
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <div class="col-6 col-md-3 col-xl">
+            <div class="panel-card h-100 analytics-kpi">
+                <div class="panel-card-body">
+                    <div class="analytics-kpi-label">Chi phí AI</div>
+                    <div class="analytics-kpi-value">$@FUsd(d.TotalEstimatedCostUsd)</div>
+                    <div class="analytics-kpi-meta">≈ @FVnd(d.TotalEstimatedCostVnd)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-xl">
+            <div class="panel-card h-100 analytics-kpi">
+                <div class="panel-card-body">
+                    <div class="analytics-kpi-label">Doanh thu</div>
+                    <div class="analytics-kpi-value">@FVnd(d.TotalRevenueVnd)</div>
+                    <div class="analytics-kpi-meta">@d.SuccessfulPaymentCount giao dịch</div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* ===== Row 2: Business charts ===== *@
+<div class="mb-2">
+    <h2 class="analytics-section-title">Biểu đồ điều hành</h2>
+    <p class="analytics-section-desc">Mức dùng AI, mức độ tương tác và môn học nổi bật trong khoảng lọc.</p>
+</div>
+
+<div class="row g-3 mb-4">
+    @if (Model.IsAdmin)
+    {
+        <div class="col-lg-4">
+            <div class="panel-card h-100">
+                <div class="panel-card-header">
+                    <strong>Mô hình AI được dùng</strong>
+                    <div class="small text-muted fw-normal">Tỷ lệ lần gọi theo provider — tối ưu chi phí hạ tầng</div>
+                </div>
+                <div class="panel-card-body">
+                    @if (d.CostByProvider.Count == 0)
+                    {
+                        <p class="text-muted mb-0">Chưa có dữ liệu provider trong khoảng này.</p>
+                    }
+                    else
+                    {
+                        <canvas id="chartModelUsage" height="220"></canvas>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    <div class="@(Model.IsAdmin ? "col-lg-4" : "col-lg-6")">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Hoạt động chat theo môn</strong>
+                <div class="small text-muted fw-normal">Môn nào sinh viên tương tác nhiều nhất?</div>
+            </div>
+            <div class="panel-card-body">
+                @if (d.ChatActivityBySubject.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có hoạt động chat.</p>
+                }
+                else
+                {
+                    <canvas id="chartChatActivity" height="220"></canvas>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="@(Model.IsAdmin ? "col-lg-4" : "col-lg-6")">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Top môn học hoạt động</strong>
+                <div class="small text-muted fw-normal">Xếp hạng theo số phiên chat</div>
+            </div>
+            <div class="panel-card-body">
+                @if (topCourses.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có phiên chat.</p>
+                }
+                else
+                {
+                    <canvas id="chartTopCourses" height="220"></canvas>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>@chatVolumeTitle</strong>
+                <div class="small text-muted fw-normal">Khối lượng câu hỏi — phản ánh mức dùng hệ thống</div>
+            </div>
+            <div class="panel-card-body">
+                <canvas id="chartChatVolume" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>@timelineTitle</strong>
+                <div class="small text-muted fw-normal">Xu hướng tiêu thụ tài nguyên AI</div>
+            </div>
+            <div class="panel-card-body">
+                <canvas id="chartTokensByDay" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Token theo môn</strong>
+                <div class="small text-muted fw-normal">Môn nào đang tiêu tốn nhiều tài nguyên AI nhất?</div>
+            </div>
+            <div class="panel-card-body">
+                @if (d.TokensBySubject.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có token AI trong khoảng này.</p>
+                }
+                else
+                {
+                    <canvas id="chartTokensByCourse" height="220"></canvas>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Sẵn sàng RAG</strong>
+                <div class="small text-muted fw-normal">Tỷ lệ tài liệu đã lập chỉ mục</div>
+            </div>
+            <div class="panel-card-body">
+                @if (d.TotalDocuments == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có tài liệu.</p>
+                }
+                else
+                {
+                    <canvas id="chartRagReady" height="220"></canvas>
+                    <p class="small text-muted mt-2 mb-0 text-center">
+                        @indexedCount/@d.TotalDocuments đã sẵn sàng tìm kiếm
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <div class="col-lg-3">
+            <div class="panel-card h-100">
+                <div class="panel-card-header">
+                    <strong>Chi phí AI theo môn</strong>
+                    <div class="small text-muted fw-normal">Phân bổ ngân sách AI</div>
+                </div>
+                <div class="panel-card-body">
+                    @if (costByCourse.Count == 0)
+                    {
+                        <p class="text-muted mb-0">Chưa có chi phí AI.</p>
+                    }
+                    else
+                    {
+                        <canvas id="chartCostByCourse" height="220"></canvas>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="col-lg-3">
+            <div class="panel-card h-100">
+                <div class="panel-card-header">
+                    <strong>Tài liệu môn phụ trách</strong>
+                </div>
+                <div class="panel-card-body">
+                    <div class="analytics-kpi-value">@d.TotalDocuments</div>
+                    <div class="analytics-kpi-meta">Đã index @d.IndexedDocuments · @d.TotalChunks đoạn</div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* ===== Row 3: Operational tables ===== *@
+<div class="mb-2">
+    <h2 class="analytics-section-title">Bảng vận hành</h2>
+    <p class="analytics-section-desc">Chi phí, doanh thu và nội dung được hỏi nhiều nhất.</p>
+</div>
+
+@if (Model.IsAdmin)
+{
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Chi phí AI theo môn</strong></div>
+            <div class="panel-card-body table-responsive">
+                @if (d.TokensBySubject.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có chi phí AI trong khoảng này.</p>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Môn</th>
+                            <th class="text-end">Lần gọi</th>
+                            <th class="text-end">Token</th>
+                            <th class="text-end">Chi phí (USD)</th>
+                            <th class="text-end">≈ VND</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var t in d.TokensBySubject)
+                        {
+                            <tr>
+                                <td>@t.SubjectName</td>
+                                <td class="text-end">@t.RequestCount</td>
+                                <td class="text-end">@t.TotalTokens.ToString("N0")</td>
+                                <td class="text-end">$@FUsd(t.EstimatedCostUsd)</td>
+                                <td class="text-end fw-semibold">@FVnd(t.EstimatedCostUsd * d.UsdToVndRate)</td>
+                            </tr>
+                        }
+                        </tbody>
+                        <tfoot>
+                        <tr class="table-light">
+                            <th>Tổng</th>
+                            <th class="text-end">@d.TokensBySubject.Sum(x => x.RequestCount)</th>
+                            <th class="text-end">@d.TotalTokens.ToString("N0")</th>
+                            <th class="text-end">$@FUsd(d.TotalEstimatedCostUsd)</th>
+                            <th class="text-end">@FVnd(d.TotalEstimatedCostVnd)</th>
+                        </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Doanh thu theo gói</strong></div>
+            <div class="panel-card-body table-responsive">
+                @if (d.RevenueByPackage.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có giao dịch mua gói thành công trong khoảng này.</p>
+                }
+                else
+                {
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th>Gói</th>
+                            <th class="text-end">Số giao dịch</th>
+                            <th class="text-end">Doanh thu (VND)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var r in d.RevenueByPackage)
+                        {
+                            <tr>
+                                <td>@r.PackageName</td>
+                                <td class="text-end">@r.PaymentCount</td>
+                                <td class="text-end fw-semibold">@FVnd(r.TotalAmountVnd)</td>
+                            </tr>
+                        }
+                        </tbody>
+                        <tfoot>
+                        <tr class="table-light">
+                            <th>Tổng</th>
+                            <th class="text-end">@d.SuccessfulPaymentCount</th>
+                            <th class="text-end">@FVnd(d.TotalRevenueVnd)</th>
+                        </tr>
+                        </tfoot>
+                    </table>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Đoạn nội dung được hỏi nhiều nhất</strong>
+                <div class="small text-muted fw-normal">Chunk được cite nhiều — ưu tiên cập nhật / bổ sung tài liệu</div>
+            </div>
+            <div class="panel-card-body">
+                @if (d.TopCitedChunks.Count == 0)
+                {
+                    <p class="text-muted mb-0">Chưa có citation từ câu trả lời AI trong khoảng này.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr><th>Tài liệu</th><th>Đoạn</th><th>Môn</th><th class="text-end">Số lần cite</th></tr>
+                            </thead>
+                            <tbody>
+                            @foreach (var c in d.TopCitedChunks)
+                            {
+                                <tr>
+                                    <td><div>@c.DocumentFileName</div><div class="text-muted small">@c.Preview</div></td>
+                                    <td>#@c.ChunkIndex</td>
+                                    <td>@c.SubjectName</td>
+                                    <td class="text-end fw-semibold">@c.CitationCount</td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ===== Row 4: Top lists ===== *@
+@if (Model.IsAdmin)
+{
+    <div class="mb-2">
+        <h2 class="analytics-section-title">Top hoạt động</h2>
+        <p class="analytics-section-desc">Giáo viên, sinh viên và tài liệu nổi bật.</p>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="panel-card h-100">
+                <div class="panel-card-header"><strong>Giáo viên upload nhiều nhất</strong></div>
+                <div class="panel-card-body">
+                    @if (d.DocumentsByTeacher.Count == 0) { <p class="text-muted mb-0">—</p> }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0 analytics-rank-list">
+                            @foreach (var t in d.DocumentsByTeacher)
+                            {
+                                <li class="d-flex justify-content-between border-bottom py-2"><span>@t.Name</span><strong>@t.Count</strong></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="panel-card h-100">
+                <div class="panel-card-header"><strong>Sinh viên hỏi nhiều nhất</strong></div>
+                <div class="panel-card-body">
+                    @if (d.MostActiveStudents.Count == 0) { <p class="text-muted mb-0">—</p> }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0 analytics-rank-list">
+                            @foreach (var s in d.MostActiveStudents)
+                            {
+                                <li class="d-flex justify-content-between border-bottom py-2"><span>@s.Name</span><strong>@s.Count</strong></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="panel-card h-100">
+                <div class="panel-card-header"><strong>Tài liệu tải nhiều nhất</strong></div>
+                <div class="panel-card-body">
+                    @if (d.TopDownloadedDocuments.Count == 0) { <p class="text-muted mb-0">—</p> }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0 analytics-rank-list">
+                            @foreach (var f in d.TopDownloadedDocuments)
+                            {
+                                <li class="d-flex justify-content-between border-bottom py-2"><span class="text-truncate me-2">@f.Name</span><strong>@f.Count</strong></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="panel-card h-100">
+                <div class="panel-card-header"><strong>Chi tiết tài liệu theo môn</strong></div>
+                <div class="panel-card-body table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Môn</th><th>File</th><th>Đã index</th><th>Đoạn</th><th>Dung lượng</th></tr></thead>
+                        <tbody>
+                        @foreach (var row in d.DocumentsBySubject)
+                        {
+                            <tr>
+                                <td>@row.SubjectName</td>
+                                <td>@row.DocumentCount</td>
+                                <td>@row.IndexedCount</td>
+                                <td>@row.ChunkCount</td>
+                                <td>@FBytes(row.TotalBytes)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="panel-card h-100">
+                <div class="panel-card-header"><strong>Sinh viên tương tác</strong></div>
+                <div class="panel-card-body">
+                    @if (d.MostActiveStudents.Count == 0) { <p class="text-muted mb-0">Chưa có phiên chat trong khoảng lọc.</p> }
+                    else
+                    {
+                        <ul class="list-unstyled mb-0 analytics-rank-list">
+                            @foreach (var s in d.MostActiveStudents)
+                            {
+                                <li class="d-flex justify-content-between border-bottom py-2"><span>@s.Name</span><strong>@s.Count câu hỏi</strong></li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        function onPeriodChange(sel) {
+            const custom = document.getElementById('custom-range');
+            if (sel.value === '@ReportPeriods.Custom') {
+                custom.classList.remove('d-none');
+                custom.classList.add('d-flex');
+            } else {
+                document.getElementById('report-filter-form').submit();
+            }
+        }
+
+        const palette = ['#0ea5e9', '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#14b8a6', '#94a3b8'];
+
+        function makeChart(id, config) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const existing = Chart.getChart(el);
+            if (existing) existing.destroy();
+            new Chart(el, config);
+        }
+
+        makeChart('chartTokensByCourse', {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(tokenSubjectLabels),
+                datasets: [{ label: 'Token', data: @Html.Raw(tokenSubjectValues), backgroundColor: '#0ea5e9', borderRadius: 8 }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+
+        makeChart('chartChatActivity', {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(activityLabels),
+                datasets: [
+                    { label: 'Phiên chat', data: @Html.Raw(activitySessions), backgroundColor: '#f59e0b', borderRadius: 6 },
+                    { label: 'Câu hỏi', data: @Html.Raw(activityQuestions), backgroundColor: '#6366f1', borderRadius: 6 }
+                ]
+            },
+            options: { responsive: true }
+        });
+
+        makeChart('chartTokensByDay', {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(dayLabels),
+                datasets: [{
+                    label: 'Token',
+                    data: @Html.Raw(dayTokenValues),
+                    borderColor: '#0f766e',
+                    backgroundColor: 'rgba(15,118,110,0.12)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true }
+        });
+
+        makeChart('chartChatVolume', {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(chatVolumeLabels),
+                datasets: [{
+                    label: 'Câu hỏi',
+                    data: @Html.Raw(chatVolumeValues),
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14,165,233,0.12)',
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: { responsive: true }
+        });
+
+        makeChart('chartTopCourses', {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(topCourseLabels),
+                datasets: [{ label: 'Phiên chat', data: @Html.Raw(topCourseSessions), backgroundColor: '#6366f1', borderRadius: 8 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        makeChart('chartRagReady', {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(ragReadyLabels),
+                datasets: [{ data: @Html.Raw(ragReadyValues), backgroundColor: ['#10b981', '#e5e7eb'], borderWidth: 0 }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        makeChart('chartModelUsage', {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(providerLabels),
+                datasets: [{ data: @Html.Raw(providerRequests), backgroundColor: palette, borderWidth: 0 }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        makeChart('chartCostByCourse', {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(costCourseLabels),
+                datasets: [{ label: 'Chi phí (₫)', data: @Html.Raw(costCourseValues), backgroundColor: '#ef4444', borderRadius: 8 }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+}

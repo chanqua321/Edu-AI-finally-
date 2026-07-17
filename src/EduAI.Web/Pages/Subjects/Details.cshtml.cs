@@ -2,6 +2,7 @@ using EduAI.Model.Constants;
 using EduAI.Model.DTOs;
 using EduAI.BusinessLogic.IService;
 using EduAI.Model.ViewModels;
+using EduAI.Model.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;

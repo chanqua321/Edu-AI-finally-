@@ -1,5 +1,6 @@
 using EduAI.Model.Repositories;
 using EduAI.Model.IRepository;
+using EduAI.Model.Entities;
 
 namespace EduAI.Model.UnitOfWork;
 
@@ -20,7 +21,11 @@ public class UnitOfWork : IUnitOfWork
         ChatSessions = new ChatSessionRepository(context);
         ChatMessages = new ChatMessageRepository(context);
         AuditLogs = new AuditLogRepository(context);
-        IndexingSettings = new IndexingSettingsRepository(context);
+        SystemSettings = new SystemSettingsRepository(context);
+        AiUsageLogs = new AiUsageLogRepository(context);
+        PaymentPackages = new GenericRepository<PaymentPackage>(context);
+        UserSubscriptions = new GenericRepository<UserSubscription>(context);
+        PaymentTransactions = new GenericRepository<PaymentTransaction>(context);
     }
 
     public ISubjectRepository Subjects { get; }
@@ -33,7 +38,12 @@ public class UnitOfWork : IUnitOfWork
     public IChatSessionRepository ChatSessions { get; }
     public IChatMessageRepository ChatMessages { get; }
     public IAuditLogRepository AuditLogs { get; }
-    public IIndexingSettingsRepository IndexingSettings { get; }
+    public ISystemSettingsRepository SystemSettings { get; }
+    public IAiUsageLogRepository AiUsageLogs { get; }
+    public IGenericRepository<PaymentPackage> PaymentPackages { get; }
+    public IGenericRepository<UserSubscription> UserSubscriptions { get; }
+    public IGenericRepository<PaymentTransaction> PaymentTransactions { get; }
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 }
+

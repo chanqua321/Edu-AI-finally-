@@ -18,19 +18,16 @@ else
 {
     <div class="panel-card" style="max-width: 520px;">
         <div class="panel-card-body">
-            @if (Model.SelectedSubjectName != null)
-            {
-                <div class="alert alert-info py-2 mb-3">
-                    <strong>Môn:</strong> @Model.SelectedSubjectName
-                </div>
-            }
+            <div id="selected-subject-banner" class="alert alert-info py-2 mb-3 @(string.IsNullOrEmpty(Model.SelectedSubjectName) ? "d-none" : "")">
+                <strong>Môn:</strong> <span id="selected-subject-name">@Model.SelectedSubjectName</span>
+            </div>
             <form method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                 @if (Model.ShowSubjectPicker)
                 {
                     <div class="mb-3">
                         <label asp-for="Input.SubjectId" class="form-label">Chọn môn</label>
-                        <select asp-for="Input.SubjectId" asp-items="Model.SubjectOptions" class="form-select"></select>
+                        <select asp-for="Input.SubjectId" asp-items="Model.SubjectOptions" class="form-select" id="chat-subject-select"></select>
                     </div>
                 }
                 else
@@ -43,4 +40,29 @@ else
     </div>
 }
 
-@section Scripts { <partial name="_ValidationScriptsPartial" /> }
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const select = document.getElementById('chat-subject-select');
+            const banner = document.getElementById('selected-subject-banner');
+            const nameEl = document.getElementById('selected-subject-name');
+            if (!select || !banner || !nameEl) return;
+
+            const syncSelectedSubject = () => {
+                const option = select.options[select.selectedIndex];
+                const name = option ? option.textContent.trim() : '';
+                if (!name) {
+                    banner.classList.add('d-none');
+                    nameEl.textContent = '';
+                    return;
+                }
+                nameEl.textContent = name;
+                banner.classList.remove('d-none');
+            };
+
+            select.addEventListener('change', syncSelectedSubject);
+            syncSelectedSubject();
+        })();
+    </script>
+}

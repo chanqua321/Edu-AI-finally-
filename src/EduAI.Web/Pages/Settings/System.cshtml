@@ -1,0 +1,510 @@
+@page
+@model EduAI.Web.Pages.Settings.SystemModel
+@using EduAI.Model.Constants
+@{
+    ViewData["Title"] = "Cấu hình hệ thống";
+    var active = Model.ActiveSection;
+}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="~/css/system-settings.css" asp-append-version="true" />
+
+<div class="sys-config" data-active-section="@active">
+    <div class="sys-config-header">
+        <h1 class="page-title">Cấu hình hệ thống</h1>
+        <p class="page-subtitle mb-0">Bảng điều khiển quản trị — chỉnh sửa từng nhóm cấu hình, lưu độc lập, có hiệu lực ngay.</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger border-0 shadow-sm" role="alert">@Model.ErrorMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success border-0 shadow-sm" role="alert">@Model.SuccessMessage</div>
+    }
+
+    <button class="btn btn-outline-primary sys-mobile-nav-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sysConfigOffcanvas" aria-controls="sysConfigOffcanvas">
+        <i class="bi bi-list"></i> Danh mục cấu hình
+    </button>
+
+    <div class="sys-config-layout">
+        <aside class="sys-config-sidebar" aria-label="Điều hướng cấu hình">
+            <nav class="sys-config-nav-card" role="tablist">
+                <ul class="sys-config-nav">
+                    <li><button type="button" class="nav-link @(active == "ai" ? "active" : "")" data-sys-section="ai" role="tab" aria-selected="@(active == "ai")"><i class="bi bi-robot"></i> AI &amp; RAG</button></li>
+                    <li><button type="button" class="nav-link @(active == "upload" ? "active" : "")" data-sys-section="upload" role="tab"><i class="bi bi-folder2-open"></i> Upload</button></li>
+                    <li><button type="button" class="nav-link @(active == "chat" ? "active" : "")" data-sys-section="chat" role="tab"><i class="bi bi-chat-dots"></i> Chat &amp; Quota</button></li>
+                    <li><button type="button" class="nav-link @(active == "payment" ? "active" : "")" data-sys-section="payment" role="tab"><i class="bi bi-credit-card"></i> Payment</button></li>
+                    <li><button type="button" class="nav-link @(active == "benchmark" ? "active" : "")" data-sys-section="benchmark" role="tab"><i class="bi bi-graph-up"></i> Benchmark &amp; Logging</button></li>
+                    <li><button type="button" class="nav-link @(active == "general" ? "active" : "")" data-sys-section="general" role="tab"><i class="bi bi-gear"></i> General</button></li>
+                </ul>
+            </nav>
+        </aside>
+
+        <div class="sys-config-content">
+
+            @* ─── AI & RAG ─── *@
+            <div class="sys-config-panel @(active != "ai" ? "d-none" : "")" data-sys-panel="ai" role="tabpanel" @(active != "ai" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">AI &amp; RAG</h2>
+                <p class="sys-config-panel-desc">Chọn generation provider và chỉnh tham số RAG. Embedding vẫn dùng Gemini; chỉ bước sinh câu trả lời chuyển theo provider.</p>
+
+                <form method="post" asp-page-handler="SaveAi" novalidate>
+                    <div class="row">
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.GenerationProvider" class="form-label">Provider sinh câu trả lời</label>
+                            <select asp-for="Input.GenerationProvider" class="form-select">
+                                @foreach (var (id, display) in AiProviderIds.All)
+                                {
+                                    <option value="@id">@display</option>
+                                }
+                            </select>
+                            <div class="form-text">Gemini 3 Flash (cloud) hoặc Ollama (local). Đây là model gợi ý mặc định trên UI chat; sinh viên vẫn có thể đổi.</div>
+                            <span asp-validation-for="Input.GenerationProvider" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.RetrievalTopK" class="form-label">Retrieval Top K</label>
+                            <input asp-for="Input.RetrievalTopK" class="form-control" type="number" min="1" max="50" />
+                            <div class="form-text">Số chunk liên quan nhất lấy ra mỗi lần hỏi đáp.</div>
+                            <span asp-validation-for="Input.RetrievalTopK" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.DefaultChunkSize" class="form-label">Kích thước chunk</label>
+                            <input asp-for="Input.DefaultChunkSize" class="form-control" type="number" min="100" max="10000" />
+                            <div class="form-text">Kích thước tối đa của mỗi đoạn dùng để index.</div>
+                            <span asp-validation-for="Input.DefaultChunkSize" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.DefaultChunkOverlap" class="form-label">Độ chồng lấp</label>
+                            <input asp-for="Input.DefaultChunkOverlap" class="form-control" type="number" min="0" max="5000" />
+                            <div class="form-text">Số ký tự trùng lặp giữa các chunk liền kề.</div>
+                            <span asp-validation-for="Input.DefaultChunkOverlap" class="invalid-feedback"></span>
+                        </div>
+                    </div>
+
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Trích dẫn nguồn</div>
+                            <p class="sys-toggle-desc">Hiển thị nguồn tài liệu trong câu trả lời AI.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.EnableCitation" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+
+                    <div class="sys-form-actions">
+                        <button type="reset" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu cấu hình AI</button>
+                    </div>
+                </form>
+            </div>
+
+            @* ─── Upload ─── *@
+            <div class="sys-config-panel @(active != "upload" ? "d-none" : "")" data-sys-panel="upload" role="tabpanel" @(active != "upload" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">Upload</h2>
+                <p class="sys-config-panel-desc">Giới hạn kích thước và định dạng file tài liệu giáo viên được phép tải lên.</p>
+
+                <form method="post" asp-page-handler="SaveUpload" novalidate>
+                    <div class="row">
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.MaxUploadFileSizeMb" class="form-label">Kích thước tối đa (MB)</label>
+                            <input asp-for="Input.MaxUploadFileSizeMb" class="form-control" type="number" min="1" />
+                            <div class="form-text">Dung lượng file tối đa cho mỗi lần upload.</div>
+                            <span asp-validation-for="Input.MaxUploadFileSizeMb" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.AllowedFileExtensions" class="form-label">Đuôi file cho phép</label>
+                            <input asp-for="Input.AllowedFileExtensions" class="form-control" placeholder=".pdf, .docx, .pptx, .txt" />
+                            <div class="form-text">Phân tách các đuôi file bằng dấu phẩy.</div>
+                            <span asp-validation-for="Input.AllowedFileExtensions" class="invalid-feedback"></span>
+                        </div>
+                    </div>
+                    <div class="sys-form-actions">
+                        <button type="reset" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu cấu hình Upload</button>
+                    </div>
+                </form>
+            </div>
+
+            @* ─── Chat & Quota ─── *@
+            <div class="sys-config-panel @(active != "chat" ? "d-none" : "")" data-sys-panel="chat" role="tabpanel" @(active != "chat" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">Chat &amp; Quota</h2>
+                <p class="sys-config-panel-desc">Múi giờ dùng cho cả quota Ollama (ngày) và Gemini (tháng).</p>
+
+                <form method="post" asp-page-handler="SaveChat" novalidate>
+                    <div class="row">
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.DefaultTimezone" class="form-label">Múi giờ</label>
+                            <input asp-for="Input.DefaultTimezone" class="form-control" placeholder="UTC" />
+                            <div class="form-text">Múi giờ dùng khi tính quota theo ngày (ví dụ: SE Asia Standard Time).</div>
+                            <span asp-validation-for="Input.DefaultTimezone" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.DailyQuotaResetHour" class="form-label">Giờ reset quota</label>
+                            <input asp-for="Input.DailyQuotaResetHour" class="form-control" type="number" min="0" max="23" />
+                            <div class="form-text">Giờ bắt đầu chu kỳ quota mới (0–23).</div>
+                            <span asp-validation-for="Input.DailyQuotaResetHour" class="invalid-feedback"></span>
+                        </div>
+                    </div>
+
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Tính request thất bại</div>
+                            <p class="sys-toggle-desc">Các câu hỏi AI thất bại có bị trừ vào hạn mức ngày không.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.CountFailedRequestsAgainstQuota" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+
+                    <div class="sys-form-actions">
+                        <button type="reset" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu cấu hình Chat</button>
+                    </div>
+                </form>
+            </div>
+
+            @* ─── Payment ─── *@
+            <div class="sys-config-panel @(active != "payment" ? "d-none" : "")" data-sys-panel="payment" role="tabpanel" @(active != "payment" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">Payment</h2>
+                <p class="sys-config-panel-desc">Quản lý gói cước — giá, thời hạn và quota Gemini/Ollama cho từng gói.</p>
+
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#packageCreateModal">
+                        + Thêm gói
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover sys-packages-table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Gói</th>
+                                <th>Giá (VND)</th>
+                                <th>Thời hạn</th>
+                                <th>Gemini/tháng</th>
+                                <th>Ollama/ngày</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var pkg in Model.Packages)
+                            {
+                                <tr>
+                                    <td>
+                                        <strong>@pkg.Name</strong>
+                                        <div class="small text-muted">@pkg.Id</div>
+                                    </td>
+                                    <td>@pkg.Price.ToString("N0")</td>
+                                    <td>@(pkg.DurationDays >= 99999 ? "Vĩnh viễn" : $"{pkg.DurationDays} ngày")</td>
+                                    <td>@pkg.MonthlyGeminiQuestions</td>
+                                    <td>@pkg.DailyOllamaQuestions</td>
+                                    <td>
+                                        <span class="badge rounded-pill @(pkg.IsActive ? "sys-badge-active" : "sys-badge-inactive")">
+                                            @(pkg.IsActive ? "Hoạt động" : "Ẩn")
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary sys-edit-package"
+                                                data-bs-toggle="modal" data-bs-target="#packageEditModal"
+                                                data-id="@pkg.Id"
+                                                data-name="@pkg.Name"
+                                                data-description="@pkg.Description"
+                                                data-price="@pkg.Price"
+                                                data-duration="@pkg.DurationDays"
+                                                data-gemini="@pkg.MonthlyGeminiQuestions"
+                                                data-ollama="@pkg.DailyOllamaQuestions"
+                                                data-order="@pkg.DisplayOrder"
+                                                data-recommended="@pkg.IsRecommended.ToString().ToLower()"
+                                                data-active="@pkg.IsActive.ToString().ToLower()">
+                                            Sửa
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @* ─── Benchmark ─── *@
+            <div class="sys-config-panel @(active != "benchmark" ? "d-none" : "")" data-sys-panel="benchmark" role="tabpanel" @(active != "benchmark" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">Benchmark &amp; Logging</h2>
+                <p class="sys-config-panel-desc">Bật/tắt ghi nhận hiệu năng, token và chi phí API.</p>
+
+                <form method="post" asp-page-handler="SaveBenchmark" novalidate>
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Benchmark logging</div>
+                            <p class="sys-toggle-desc">Bật toàn bộ ghi nhận benchmark AI.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.EnableBenchmarkLogging" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Latency logging</div>
+                            <p class="sys-toggle-desc">Ghi thời gian embedding, retrieval và generation.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.EnableLatencyLogging" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Token logging</div>
+                            <p class="sys-toggle-desc">Ghi số token tiêu thụ mỗi request.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.EnableTokenLogging" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+                    <div class="sys-toggle-row">
+                        <div>
+                            <div class="sys-toggle-label">Cost logging</div>
+                            <p class="sys-toggle-desc">Ước tính chi phí USD từ bảng giá token.</p>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input asp-for="Input.EnableCostLogging" class="form-check-input" role="switch" />
+                        </div>
+                    </div>
+                    <div class="sys-form-actions">
+                        <button type="reset" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu cấu hình Benchmark</button>
+                    </div>
+                </form>
+            </div>
+
+            @* ─── General ─── *@
+            <div class="sys-config-panel @(active != "general" ? "d-none" : "")" data-sys-panel="general" role="tabpanel" @(active != "general" ? "hidden" : null)>
+                <h2 class="sys-config-panel-title">General</h2>
+                <p class="sys-config-panel-desc">Định giá token AI và thông tin cập nhật gần nhất.</p>
+
+                <form method="post" asp-page-handler="SaveGeneral" novalidate>
+                    <div class="row">
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.InputTokenPricePerMillion" class="form-label">Giá input token ($/triệu)</label>
+                            <input asp-for="Input.InputTokenPricePerMillion" class="form-control" type="number" step="0.000001" min="0" />
+                            <div class="form-text">Chi phí token đầu vào dùng ước tính chi phí.</div>
+                            <span asp-validation-for="Input.InputTokenPricePerMillion" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.OutputTokenPricePerMillion" class="form-label">Giá output token ($/triệu)</label>
+                            <input asp-for="Input.OutputTokenPricePerMillion" class="form-control" type="number" step="0.000001" min="0" />
+                            <div class="form-text">Chi phí token sinh ra từ mô hình.</div>
+                            <span asp-validation-for="Input.OutputTokenPricePerMillion" class="invalid-feedback"></span>
+                        </div>
+                        <div class="col-md-6 sys-field">
+                            <label asp-for="Input.EmbeddingPricePerMillion" class="form-label">Giá embedding ($/triệu)</label>
+                            <input asp-for="Input.EmbeddingPricePerMillion" class="form-control" type="number" step="0.000001" min="0" />
+                            <div class="form-text">Chi phí tạo vector embedding.</div>
+                            <span asp-validation-for="Input.EmbeddingPricePerMillion" class="invalid-feedback"></span>
+                        </div>
+                    </div>
+
+                    @if (Model.Input.UpdatedAt != default)
+                    {
+                        <div class="sys-meta-footer">
+                            Cập nhật lần cuối: <strong>@Model.Input.UpdatedAt.ToLocalTime().ToString("g")</strong>
+                            @if (!string.IsNullOrEmpty(Model.Input.UpdatedByName))
+                            {
+                                <text> — @Model.Input.UpdatedByName</text>
+                            }
+                        </div>
+                    }
+
+                    <div class="sys-form-actions">
+                        <button type="reset" class="btn btn-outline-secondary">Hủy</button>
+                        <button type="submit" class="btn btn-primary">Lưu cấu hình chung</button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@* Mobile offcanvas nav *@
+<div class="offcanvas offcanvas-start sys-offcanvas-nav" tabindex="-1" id="sysConfigOffcanvas" aria-labelledby="sysConfigOffcanvasLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="sysConfigOffcanvasLabel">Cấu hình hệ thống</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Đóng"></button>
+    </div>
+    <div class="offcanvas-body p-2">
+        <nav class="d-flex flex-column gap-1">
+            <button type="button" class="nav-link @(active == "ai" ? "active" : "")" data-sys-section="ai"><i class="bi bi-robot"></i> AI &amp; RAG</button>
+            <button type="button" class="nav-link @(active == "upload" ? "active" : "")" data-sys-section="upload"><i class="bi bi-folder2-open"></i> Upload</button>
+            <button type="button" class="nav-link @(active == "chat" ? "active" : "")" data-sys-section="chat"><i class="bi bi-chat-dots"></i> Chat &amp; Quota</button>
+            <button type="button" class="nav-link @(active == "payment" ? "active" : "")" data-sys-section="payment"><i class="bi bi-credit-card"></i> Payment</button>
+            <button type="button" class="nav-link @(active == "benchmark" ? "active" : "")" data-sys-section="benchmark"><i class="bi bi-graph-up"></i> Benchmark</button>
+            <button type="button" class="nav-link @(active == "general" ? "active" : "")" data-sys-section="general"><i class="bi bi-gear"></i> General</button>
+        </nav>
+    </div>
+</div>
+
+@* Package create modal *@
+<div class="modal fade" id="packageCreateModal" tabindex="-1" aria-labelledby="packageCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" asp-page-handler="CreatePackage">
+                <input type="hidden" name="section" value="payment" />
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="packageCreateModalLabel">Thêm gói cước mới</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label asp-for="PackageCreate.Id" class="form-label">Mã gói (Id)</label>
+                        <input asp-for="PackageCreate.Id" class="form-control" id="pkgCreateId" placeholder="VD: StudentPlus" />
+                        <div class="form-text">Để trống sẽ tự tạo từ tên gói. Chỉ gồm chữ, số, gạch ngang.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="PackageCreate.Name" class="form-label">Tên gói</label>
+                        <input asp-for="PackageCreate.Name" class="form-control" id="pkgCreateName" required />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="PackageCreate.Description" class="form-label">Mô tả</label>
+                        <textarea asp-for="PackageCreate.Description" class="form-control" id="pkgCreateDescription" rows="2"></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label asp-for="PackageCreate.Price" class="form-label">Giá (VND)</label>
+                            <input asp-for="PackageCreate.Price" class="form-control" type="number" min="0" step="1000" />
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageCreate.DurationDays" class="form-label">Thời hạn (ngày)</label>
+                            <input asp-for="PackageCreate.DurationDays" class="form-control" type="number" min="0" />
+                            <div class="form-text">0 hoặc ≥ 99999 = vĩnh viễn</div>
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageCreate.MonthlyGeminiQuestions" class="form-label">Gemini/tháng</label>
+                            <input asp-for="PackageCreate.MonthlyGeminiQuestions" class="form-control" type="number" min="0" />
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageCreate.DailyOllamaQuestions" class="form-label">Ollama/ngày</label>
+                            <input asp-for="PackageCreate.DailyOllamaQuestions" class="form-control" type="number" min="0" />
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageCreate.DisplayOrder" class="form-label">Thứ tự hiển thị</label>
+                            <input asp-for="PackageCreate.DisplayOrder" class="form-control" type="number" min="0" />
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex flex-column gap-2">
+                        <div class="form-check form-switch">
+                            <input asp-for="PackageCreate.IsRecommended" class="form-check-input" role="switch" id="pkgCreateRecommended" />
+                            <label class="form-check-label" for="pkgCreateRecommended">Gói khuyến nghị</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="PackageCreate.IsActive" class="form-check-input" role="switch" id="pkgCreateActive" />
+                            <label class="form-check-label" for="pkgCreateActive">Đang hoạt động</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Tạo gói</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* Package edit modal *@
+<div class="modal fade" id="packageEditModal" tabindex="-1" aria-labelledby="packageEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form method="post" asp-page-handler="UpdatePackage">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title" id="packageEditModalLabel">Chỉnh sửa gói cước</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="PackageEdit.Id" id="pkgEditId" />
+                    <div class="mb-3">
+                        <label asp-for="PackageEdit.Name" class="form-label">Tên gói</label>
+                        <input asp-for="PackageEdit.Name" class="form-control" id="pkgEditName" required />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="PackageEdit.Description" class="form-label">Mô tả</label>
+                        <textarea asp-for="PackageEdit.Description" class="form-control" id="pkgEditDescription" rows="2"></textarea>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label asp-for="PackageEdit.Price" class="form-label">Giá (VND)</label>
+                            <input asp-for="PackageEdit.Price" class="form-control" type="number" min="0" id="pkgEditPrice" />
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageEdit.DurationDays" class="form-label">Thời hạn (ngày)</label>
+                            <input asp-for="PackageEdit.DurationDays" class="form-control" type="number" min="0" id="pkgEditDuration" />
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageEdit.MonthlyGeminiQuestions" class="form-label">Gemini/tháng</label>
+                            <input asp-for="PackageEdit.MonthlyGeminiQuestions" class="form-control" type="number" min="0" id="pkgEditGemini" />
+                            <div class="form-text">0 = không được dùng Gemini</div>
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageEdit.DailyOllamaQuestions" class="form-label">Ollama/ngày</label>
+                            <input asp-for="PackageEdit.DailyOllamaQuestions" class="form-control" type="number" min="0" id="pkgEditOllama" />
+                            <div class="form-text">0 = không được dùng Ollama</div>
+                        </div>
+                        <div class="col-6">
+                            <label asp-for="PackageEdit.DisplayOrder" class="form-label">Thứ tự hiển thị</label>
+                            <input asp-for="PackageEdit.DisplayOrder" class="form-control" type="number" min="0" id="pkgEditOrder" />
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex flex-column gap-2">
+                        <div class="form-check form-switch">
+                            <input asp-for="PackageEdit.IsRecommended" class="form-check-input" role="switch" id="pkgEditRecommended" />
+                            <label class="form-check-label" for="pkgEditRecommended">Gói khuyến nghị</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input asp-for="PackageEdit.IsActive" class="form-check-input" role="switch" id="pkgEditActive" />
+                            <label class="form-check-label" for="pkgEditActive">Đang hoạt động</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu gói cước</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/system-settings.js" asp-append-version="true"></script>
+    <script>
+        document.querySelectorAll('.sys-edit-package').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                document.getElementById('pkgEditId').value = btn.dataset.id || '';
+                document.getElementById('pkgEditName').value = btn.dataset.name || '';
+                document.getElementById('pkgEditDescription').value = btn.dataset.description || '';
+                document.getElementById('pkgEditPrice').value = btn.dataset.price || '0';
+                document.getElementById('pkgEditDuration').value = btn.dataset.duration || '0';
+                document.getElementById('pkgEditGemini').value = btn.dataset.gemini || '0';
+                document.getElementById('pkgEditOllama').value = btn.dataset.ollama || '0';
+                document.getElementById('pkgEditOrder').value = btn.dataset.order || '0';
+                document.getElementById('pkgEditRecommended').checked = btn.dataset.recommended === 'true';
+                document.getElementById('pkgEditActive').checked = btn.dataset.active === 'true';
+            });
+        });
+
+        @if (active == "payment" && !string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <text>
+            document.addEventListener('DOMContentLoaded', () => {
+                const createModal = document.getElementById('packageCreateModal');
+                const editModal = document.getElementById('packageEditModal');
+                const msg = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ErrorMessage));
+                const preferCreate = msg && msg.toLowerCase().includes('tạo');
+                const target = preferCreate ? createModal : editModal;
+                if (target && window.bootstrap?.Modal) new bootstrap.Modal(target).show();
+            });
+            </text>
+        }
+    </script>
+}

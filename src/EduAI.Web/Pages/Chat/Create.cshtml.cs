@@ -75,8 +75,8 @@ public class CreateModel : PageModel
         if (active != null)
             SelectedSubjectName = active.Name;
 
-        var subjectLocked = selectedId.HasValue && subjects.Any(s => s.Id == selectedId.Value);
-        ShowSubjectPicker = subjects.Count > 1 && !subjectLocked;
+        // Always allow picking another subject when more than one is available.
+        ShowSubjectPicker = subjects.Count > 1;
 
         SubjectOptions = new SelectList(
             subjects.Select(s => new { s.Id, Name = s.Name }),

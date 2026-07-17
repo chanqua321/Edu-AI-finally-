@@ -10,6 +10,10 @@ namespace EduAI.BusinessLogic.Services;
 
 public class EmailService : IEmailService
 {
+    // TODO(TEST): Đặt false khi deploy — tạm tắt gửi mail để test tạo TK nhanh.
+    public const bool DisabledForTesting = true;
+
+    // appsettings: "EmailSettings" (inject qua IOptions) → SmtpHost/Username/Password dùng gửi mail tài khoản.
     private readonly EmailSettings _emailSettings;
     private readonly ILogger<EmailService> _logger;
 
@@ -114,7 +118,19 @@ public class EmailService : IEmailService
         return SendHtmlEmailAsync(toEmail, subject, body);
     }
 
-    private async Task<bool> SendHtmlEmailAsync(string toEmail, string subject, string htmlBody)
+    private Task<bool> SendHtmlEmailAsync(string toEmail, string subject, string htmlBody)
+    {
+        // Tạm tắt gửi mail khi test — đặt DisabledForTesting = false để bật lại SMTP bên dưới.
+        if (DisabledForTesting)
+        {
+            _logger.LogWarning("[TEST] Email skipped for {Email}: {Subject}", toEmail, subject);
+            return Task.FromResult(true);
+        }
+
+        return SendHtmlEmailCoreAsync(toEmail, subject, htmlBody);
+    }
+
+    private async Task<bool> SendHtmlEmailCoreAsync(string toEmail, string subject, string htmlBody)
     {
         if (!_emailSettings.Enabled)
         {
@@ -140,6 +156,7 @@ public class EmailService : IEmailService
             message.Body = new TextPart("html") { Text = htmlBody };
 
             using var client = new SmtpClient();
+            // appsettings: "EmailSettings:SmtpHost" + "SmtpPort" + "Username" + "Password" → kết nối SMTP gửi email.
             await client.ConnectAsync(
                 _emailSettings.SmtpHost,
                 _emailSettings.SmtpPort,

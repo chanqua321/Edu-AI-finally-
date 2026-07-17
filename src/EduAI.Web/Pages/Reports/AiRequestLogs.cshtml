@@ -1,0 +1,212 @@
+@page
+@model EduAI.Web.Pages.Reports.AiRequestLogsModel
+@{
+    ViewData["Title"] = "Nhật ký request AI";
+}
+
+<div class="reports-benchmark">
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Nhật ký request AI</h1>
+        <p class="page-subtitle">Điều tra lỗi, lọc theo provider/môn/user và xuất CSV — tách biệt khỏi dashboard tổng quan.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Reports/Benchmarks" class="btn btn-sm btn-outline-secondary">← Benchmark AI</a>
+        <a class="btn btn-sm btn-primary"
+           asp-page-handler="Export"
+           asp-route-Q="@Model.Q"
+           asp-route-Provider="@Model.Provider"
+           asp-route-SubjectId="@Model.SubjectId"
+           asp-route-UserId="@Model.UserId"
+           asp-route-Status="@Model.Status"
+           asp-route-From="@(Model.From?.ToString("yyyy-MM-dd"))"
+           asp-route-To="@(Model.To?.ToString("yyyy-MM-dd"))"
+           asp-route-Sort="@Model.Sort">
+            Xuất CSV
+        </a>
+    </div>
+</div>
+
+<partial name="_ReportsNav" />
+
+<form method="get" class="panel-card mb-4">
+    <div class="panel-card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1" for="q">Tìm kiếm</label>
+                <input class="form-control form-control-sm" id="q" name="Q" value="@Model.Q"
+                       placeholder="Lỗi, model, user, id…" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="provider">Provider</label>
+                <select class="form-select form-select-sm" id="provider" name="Provider" asp-items="Model.ProviderOptions"></select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="subjectId">Môn học</label>
+                <select class="form-select form-select-sm" id="subjectId" name="SubjectId" asp-items="Model.SubjectOptions"></select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="userId">User ID</label>
+                <input class="form-control form-control-sm" id="userId" name="UserId" value="@Model.UserId" placeholder="Một phần user id" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="status">Trạng thái</label>
+                <select class="form-select form-select-sm" id="status" name="Status">
+                    @if (string.IsNullOrWhiteSpace(Model.Status))
+                    {
+                        <option value="" selected>Tất cả</option>
+                    }
+                    else
+                    {
+                        <option value="">Tất cả</option>
+                    }
+                    @if (Model.Status == "ok")
+                    {
+                        <option value="ok" selected>Thành công</option>
+                    }
+                    else
+                    {
+                        <option value="ok">Thành công</option>
+                    }
+                    @if (Model.Status == "error")
+                    {
+                        <option value="error" selected>Lỗi</option>
+                    }
+                    else
+                    {
+                        <option value="error">Lỗi</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="sort">Sắp xếp</label>
+                <select class="form-select form-select-sm" id="sort" name="Sort">
+                    @if (Model.Sort != "slowest")
+                    {
+                        <option value="newest" selected>Mới nhất</option>
+                    }
+                    else
+                    {
+                        <option value="newest">Mới nhất</option>
+                    }
+                    @if (Model.Sort == "slowest")
+                    {
+                        <option value="slowest" selected>Chậm nhất</option>
+                    }
+                    else
+                    {
+                        <option value="slowest">Chậm nhất</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="from">Từ ngày</label>
+                <input class="form-control form-control-sm" type="date" id="from" name="From"
+                       value="@(Model.From?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="to">Đến ngày</label>
+                <input class="form-control form-control-sm" type="date" id="to" name="To"
+                       value="@(Model.To?.ToString("yyyy-MM-dd"))" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-primary w-100">Lọc</button>
+            </div>
+            <div class="col-md-2">
+                <a asp-page="/Reports/AiRequestLogs" class="btn btn-sm btn-outline-secondary w-100">Xóa lọc</a>
+            </div>
+        </div>
+        <div class="small text-muted mt-2">@Model.TotalCount kết quả · trang @Model.PageNumber/@Model.TotalPages (90 ngày gần nhất)</div>
+    </div>
+</form>
+
+<div class="panel-card mb-4">
+    <div class="panel-card-body table-responsive p-0">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th class="ps-3">Thời gian</th>
+                <th>Provider</th>
+                <th>Model</th>
+                <th>Môn</th>
+                <th>User</th>
+                <th class="text-end">Token</th>
+                <th class="text-end">ms</th>
+                <th>Trạng thái</th>
+                <th class="pe-3">Chi tiết</th>
+            </tr>
+            </thead>
+            <tbody>
+            @if (Model.Logs.Count == 0)
+            {
+                <tr><td colspan="9" class="text-center text-muted py-4">Không có request khớp bộ lọc.</td></tr>
+            }
+            else
+            {
+                foreach (var log in Model.Logs)
+                {
+                    <tr>
+                        <td class="ps-3 small text-muted">@log.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                        <td><span class="badge bg-light text-dark">@(log.Provider ?? "—")</span></td>
+                        <td class="small">@(log.Model ?? "—")</td>
+                        <td>@(log.Subject?.Name ?? "—")</td>
+                        <td class="small text-truncate" style="max-width:120px;" title="@log.UserId">@(string.IsNullOrWhiteSpace(log.UserId) ? "—" : log.UserId![..Math.Min(8, log.UserId.Length)] + "…")</td>
+                        <td class="text-end">@log.TotalTokens</td>
+                        <td class="text-end">@log.TotalTimeMs</td>
+                        <td>
+                            @if (log.IsSuccess)
+                            { <span class="badge text-bg-success">OK</span> }
+                            else
+                            { <span class="badge text-bg-danger">Lỗi</span> }
+                        </td>
+                        <td class="pe-3">
+                            <a class="btn btn-sm btn-outline-secondary"
+                               asp-page="/Reports/AiRequestLogDetails" asp-route-id="@log.Id">Xem</a>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (Model.TotalPages > 1)
+{
+    <nav aria-label="Phân trang nhật ký">
+        <ul class="pagination pagination-sm">
+            @{
+                var prev = Math.Max(1, Model.PageNumber - 1);
+                var next = Math.Min(Model.TotalPages, Model.PageNumber + 1);
+            }
+            <li class="page-item @(Model.PageNumber <= 1 ? "disabled" : "")">
+                <a class="page-link"
+                   asp-page="/Reports/AiRequestLogs"
+                   asp-route-PageNumber="@prev"
+                   asp-route-Q="@Model.Q"
+                   asp-route-Provider="@Model.Provider"
+                   asp-route-SubjectId="@Model.SubjectId"
+                   asp-route-UserId="@Model.UserId"
+                   asp-route-Status="@Model.Status"
+                   asp-route-From="@(Model.From?.ToString("yyyy-MM-dd"))"
+                   asp-route-To="@(Model.To?.ToString("yyyy-MM-dd"))"
+                   asp-route-Sort="@Model.Sort">Trước</a>
+            </li>
+            <li class="page-item disabled"><span class="page-link">@Model.PageNumber / @Model.TotalPages</span></li>
+            <li class="page-item @(Model.PageNumber >= Model.TotalPages ? "disabled" : "")">
+                <a class="page-link"
+                   asp-page="/Reports/AiRequestLogs"
+                   asp-route-PageNumber="@next"
+                   asp-route-Q="@Model.Q"
+                   asp-route-Provider="@Model.Provider"
+                   asp-route-SubjectId="@Model.SubjectId"
+                   asp-route-UserId="@Model.UserId"
+                   asp-route-Status="@Model.Status"
+                   asp-route-From="@(Model.From?.ToString("yyyy-MM-dd"))"
+                   asp-route-To="@(Model.To?.ToString("yyyy-MM-dd"))"
+                   asp-route-Sort="@Model.Sort">Sau</a>
+            </li>
+        </ul>
+    </nav>
+}
+</div>

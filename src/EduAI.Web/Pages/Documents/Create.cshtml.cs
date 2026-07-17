@@ -21,6 +21,8 @@ public class CreateModel : PageModel
     private readonly ISubjectService _subjectService;
     private readonly IChapterService _chapterService;
     private readonly ILessonService _lessonService;
+    private readonly ISystemSettingsService _systemSettingsService;
+    // appsettings: "AppSettings:UploadPath" → kiểm tra giới hạn upload trên form tạo tài liệu.
     private readonly AppSettings _appSettings;
 
     public CreateModel(
@@ -28,12 +30,14 @@ public class CreateModel : PageModel
         ISubjectService subjectService,
         IChapterService chapterService,
         ILessonService lessonService,
+        ISystemSettingsService systemSettingsService,
         IOptions<AppSettings> appSettings)
     {
         _documentService = documentService;
         _subjectService = subjectService;
         _chapterService = chapterService;
         _lessonService = lessonService;
+        _systemSettingsService = systemSettingsService;
         _appSettings = appSettings.Value;
     }
 
@@ -256,7 +260,11 @@ public class CreateModel : PageModel
         }
 
         CanUpload = true;
-        MaxUploadMb = (int)(_appSettings.MaxUploadBytes / (1024 * 1024));
+        var settings = await _systemSettingsService.GetAsync();
+        var maxBytes = settings.MaxUploadFileSizeBytes > 0
+            ? settings.MaxUploadFileSizeBytes
+            : _appSettings.MaxUploadBytes;
+        MaxUploadMb = (int)Math.Max(1, maxBytes / (1024 * 1024));
 
         SubjectOptions = new SelectList(
             subjects.Select(s => new { s.Id, Name = s.Name }),

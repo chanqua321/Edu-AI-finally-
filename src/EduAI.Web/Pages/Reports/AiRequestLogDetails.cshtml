@@ -1,0 +1,70 @@
+@page "{id:int}"
+@model EduAI.Web.Pages.Reports.AiRequestLogDetailsModel
+@{
+    ViewData["Title"] = $"Request AI #{Model.Log?.Id}";
+    var log = Model.Log!;
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Chi tiết request #@log.Id</h1>
+        <p class="page-subtitle">@log.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</p>
+    </div>
+    <a asp-page="/Reports/AiRequestLogs" class="btn btn-sm btn-outline-secondary">← Quay lại nhật ký</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Thông tin chung</strong></div>
+            <div class="panel-card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4">Provider</dt><dd class="col-sm-8">@(log.Provider ?? "—")</dd>
+                    <dt class="col-sm-4">Model</dt><dd class="col-sm-8">@(log.Model ?? "—")</dd>
+                    <dt class="col-sm-4">Môn</dt><dd class="col-sm-8">@(log.Subject?.Name ?? "—")</dd>
+                    <dt class="col-sm-4">User</dt><dd class="col-sm-8 text-break">@(log.UserId ?? "—")</dd>
+                    <dt class="col-sm-4">Operation</dt><dd class="col-sm-8">@log.Operation</dd>
+                    <dt class="col-sm-4">Trạng thái</dt>
+                    <dd class="col-sm-8">
+                        @if (log.IsSuccess)
+                        { <span class="badge text-bg-success">Thành công</span> }
+                        else
+                        { <span class="badge text-bg-danger">Lỗi</span> }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Hiệu năng &amp; chi phí</strong></div>
+            <div class="panel-card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5">Prompt tokens</dt><dd class="col-sm-7">@log.PromptTokens</dd>
+                    <dt class="col-sm-5">Completion tokens</dt><dd class="col-sm-7">@log.CompletionTokens</dd>
+                    <dt class="col-sm-5">Tổng tokens</dt><dd class="col-sm-7 fw-semibold">@log.TotalTokens</dd>
+                    <dt class="col-sm-5">Embedding</dt><dd class="col-sm-7">@log.EmbeddingTimeMs ms</dd>
+                    <dt class="col-sm-5">Retrieval</dt><dd class="col-sm-7">@log.RetrievalTimeMs ms</dd>
+                    <dt class="col-sm-5">Generation</dt><dd class="col-sm-7">@log.GenerationTimeMs ms</dd>
+                    <dt class="col-sm-5">Tổng thời gian</dt><dd class="col-sm-7 fw-semibold">@log.TotalTimeMs ms</dd>
+                    <dt class="col-sm-5">Chi phí ước tính</dt>
+                    <dd class="col-sm-7">
+                        <div class="fw-semibold">@((log.EstimatedCostUsd * Model.UsdToVndRate).ToString("N0")) ₫</div>
+                        <div class="small text-muted">$@log.EstimatedCostUsd.ToString("0.######") · tỷ giá @Model.UsdToVndRate.ToString("N0")</div>
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    @if (!string.IsNullOrWhiteSpace(log.ErrorMessage))
+    {
+        <div class="col-12">
+            <div class="panel-card">
+                <div class="panel-card-header"><strong>Thông báo lỗi</strong></div>
+                <div class="panel-card-body">
+                    <pre class="mb-0 small text-danger" style="white-space:pre-wrap;">@log.ErrorMessage</pre>
+                </div>
+            </div>
+        </div>
+    }
+</div>

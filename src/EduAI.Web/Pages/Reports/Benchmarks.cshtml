@@ -1,0 +1,417 @@
+@page
+@model EduAI.Web.Pages.Reports.BenchmarksModel
+@{
+    ViewData["Title"] = "Benchmark AI";
+    string FVnd(decimal vnd) => vnd.ToString("N0") + " ₫";
+    string FUsd(decimal usd) => usd.ToString("0.######");
+}
+
+<div class="reports-benchmark">
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Benchmark AI</h1>
+        <p class="page-subtitle">Tổng quan hiệu năng &amp; độ tin cậy AI trong 30 ngày — hỗ trợ quyết định chọn provider và theo dõi chi phí (₫).</p>
+    </div>
+    <a asp-page="/Reports/AiRequestLogs" class="btn btn-sm btn-outline-secondary">Nhật ký request AI</a>
+</div>
+
+<partial name="_ReportsNav" />
+
+@* Row 1: KPIs *@
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md">
+        <div class="panel-card h-100 analytics-kpi"><div class="panel-card-body">
+            <div class="analytics-kpi-label">Tổng request AI</div>
+            <div class="analytics-kpi-value">@Model.TotalQueries</div>
+            <div class="analytics-kpi-meta">30 ngày gần nhất</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="panel-card h-100 analytics-kpi"><div class="panel-card-body">
+            <div class="analytics-kpi-label">Tỷ lệ thành công</div>
+            <div class="analytics-kpi-value">@Math.Round(Model.SuccessRate, 1)%</div>
+            <div class="analytics-kpi-meta">@Model.SuccessQueries OK · @Model.FailedQueries lỗi</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="panel-card h-100 analytics-kpi"><div class="panel-card-body">
+            <div class="analytics-kpi-label">Thời gian phản hồi TB</div>
+            <div class="analytics-kpi-value">@Math.Round(Model.AvgTotalMs, 0) <span class="fs-6 text-muted">ms</span></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="panel-card h-100 analytics-kpi"><div class="panel-card-body">
+            <div class="analytics-kpi-label">Retrieval TB</div>
+            <div class="analytics-kpi-value">@Math.Round(Model.AvgRetrievalMs, 0) <span class="fs-6 text-muted">ms</span></div>
+        </div></div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="panel-card h-100 analytics-kpi"><div class="panel-card-body">
+            <div class="analytics-kpi-label">Generation TB</div>
+            <div class="analytics-kpi-value">@Math.Round(Model.AvgGenerationMs, 0) <span class="fs-6 text-muted">ms</span></div>
+        </div></div>
+    </div>
+</div>
+
+@* Row 2: Provider table *@
+<div class="panel-card mb-4">
+    <div class="panel-card-header">
+        <strong>So sánh theo Provider</strong>
+        <div class="small text-muted fw-normal">Một bảng đủ để chọn Gemini / Ollama theo tốc độ, độ tin cậy và chi phí</div>
+    </div>
+    <div class="panel-card-body table-responsive p-0">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+            <tr>
+                <th class="ps-3">Provider</th>
+                <th>Model</th>
+                <th class="text-end">Requests</th>
+                <th class="text-end">Phản hồi TB</th>
+                <th class="text-end">Generation TB</th>
+                <th class="text-end">Retrieval TB</th>
+                <th class="text-end">Tỷ lệ OK</th>
+                <th class="text-end">Token TB</th>0
+
+
+
+2                <th class="text-end pe-3">Chi phí ước tính (₫)</th>
+            </tr>
+            </thead>
+            <tbody>
+            @if (Model.ProviderStats.Count == 0)
+            {
+                <tr><td colspan="9" class="text-center text-muted py-4">Chưa có dữ liệu provider.</td></tr>
+            }
+            else
+            {
+                foreach (var p in Model.ProviderStats)
+                {
+                    <tr>
+                        <td class="ps-3 fw-semibold">@p.Provider</td>
+                        <td class="small">@p.Model</td>
+                        <td class="text-end">@p.TotalRequests</td>
+                        <td class="text-end">@p.AvgTotalMs ms</td>
+                        <td class="text-end">@p.AvgGenerationMs ms</td>
+                        <td class="text-end">@p.AvgRetrievalMs ms</td>
+                        <td class="text-end">@p.SuccessRate%</td>
+                        <td class="text-end">@p.AvgTokens.ToString("N1")</td>
+                        <td class="text-end pe-3">
+                            <div class="fw-semibold">@FVnd(p.EstimatedCostUsd * Model.UsdToVndRate)</div>
+                            <div class="small text-muted">$@FUsd(p.EstimatedCostUsd)</div>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@* Row 3: Provider charts *@
+<div class="mb-2">
+    <h2 class="analytics-section-title">So sánh provider</h2>
+    <p class="analytics-section-desc">Provider nào nhanh hơn · tin cậy hơn · được dùng nhiều hơn?</p>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Thời gian phản hồi TB</strong></div>
+            <div class="panel-card-body"><canvas id="chartProviderLatency" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Tỷ lệ thành công</strong></div>
+            <div class="panel-card-body"><canvas id="chartProviderSuccess" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Phân bố request</strong></div>
+            <div class="panel-card-body"><canvas id="chartProviderUsage" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+
+@* Row 4: Trends *@
+<div class="mb-2">
+    <h2 class="analytics-section-title">Xu hướng 14 ngày</h2>
+    <p class="analytics-section-desc">Theo dõi chi phí, độ ổn định và hiệu năng theo thời gian.</p>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Xu hướng chi phí AI (₫)</strong></div>
+            <div class="panel-card-body"><canvas id="chartCostTrend" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Xu hướng thời gian phản hồi</strong></div>
+            <div class="panel-card-body"><canvas id="chartLatencyTrend" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Xu hướng tỷ lệ thành công</strong></div>
+            <div class="panel-card-body"><canvas id="chartSuccessTrend" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+
+@* Row 5: Quality & errors *@
+<div class="mb-2">
+    <h2 class="analytics-section-title">Chất lượng RAG &amp; lỗi</h2>
+    <p class="analytics-section-desc">Nguyên nhân lỗi phổ biến và độ ổn định từng provider.</p>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-3">
+        <div class="panel-card h-100">
+            <div class="panel-card-header">
+                <strong>Tỷ lệ truy xuất RAG</strong>
+                <div class="small text-muted fw-normal">Có ngữ liệu vs không khớp</div>
+            </div>
+            <div class="panel-card-body"><canvas id="chartRetrieval" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Phân bố lỗi</strong></div>
+            <div class="panel-card-body"><canvas id="chartErrors" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Tỷ lệ lỗi theo Provider</strong></div>
+            <div class="panel-card-body"><canvas id="chartErrorRate" height="200"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="panel-card h-100">
+            <div class="panel-card-header"><strong>Chi phí AI theo môn (₫)</strong></div>
+            <div class="panel-card-body"><canvas id="chartCostByCourse" height="200"></canvas></div>
+        </div>
+    </div>
+</div>
+
+@* Row 6: Top slowest + latest *@
+<div class="row g-3 mb-4">
+    <div class="col-lg-7">
+        <div class="panel-card h-100">
+            <div class="panel-card-header d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <strong>Top 5 request chậm nhất</strong>
+                    <div class="small text-muted fw-normal">Ưu tiên điều tra các lần gọi bất thường</div>
+                </div>
+                <a asp-page="/Reports/AiRequestLogs" asp-route-sort="slowest" class="btn btn-sm btn-outline-secondary">Xem tất cả nhật ký</a>
+            </div>
+            <div class="panel-card-body table-responsive p-0">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Thời gian</th>
+                        <th>Provider</th>
+                        <th>Môn</th>
+                        <th class="text-end">Retrieval</th>
+                        <th class="text-end">Generation</th>
+                        <th class="text-end pe-3">Tổng</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.SlowestRequests.Count == 0)
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-3">Chưa có dữ liệu.</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var log in Model.SlowestRequests)
+                        {
+                            <tr>
+                                <td class="ps-3 small text-muted">@log.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                <td>@(log.Provider ?? "—")</td>
+                                <td>@(log.Subject?.Name ?? "—")</td>
+                                <td class="text-end">@log.RetrievalTimeMs</td>
+                                <td class="text-end">@log.GenerationTimeMs</td>
+                                <td class="text-end pe-3 fw-semibold">@log.TotalTimeMs ms</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="panel-card h-100">
+            <div class="panel-card-header d-flex flex-row justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <strong>5 request gần nhất</strong>
+                    <div class="small text-muted fw-normal">Xem nhanh trạng thái hệ thống</div>
+                </div>
+                <a asp-page="/Reports/AiRequestLogs" class="btn btn-sm btn-primary">Xem tất cả nhật ký</a>
+            </div>
+            <div class="panel-card-body table-responsive p-0">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-3">Thời gian</th>
+                        <th>Provider</th>
+                        <th>Trạng thái</th>
+                        <th class="text-end pe-3">ms</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.LatestRequests.Count == 0)
+                    {
+                        <tr><td colspan="4" class="text-center text-muted py-3">Chưa có request.</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var log in Model.LatestRequests)
+                        {
+                            <tr>
+                                <td class="ps-3 small text-muted">@log.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                <td>@(log.Provider ?? "—")</td>
+                                <td>
+                                    @if (log.IsSuccess)
+                                    { <span class="badge text-bg-success">OK</span> }
+                                    else
+                                    { <span class="badge text-bg-danger">Lỗi</span> }
+                                </td>
+                                <td class="text-end pe-3">@log.TotalTimeMs</td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const labels = @Html.Raw(Model.ProviderLabelsJson);
+            const colors = ['#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+            const dailyLabels = @Html.Raw(Model.DailyLabelsJson);
+
+            function make(id, config) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const existing = Chart.getChart(el);
+                if (existing) existing.destroy();
+                new Chart(el, config);
+            }
+
+            make('chartProviderLatency', {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'ms', data: @Html.Raw(Model.ProviderAvgTotalJson), backgroundColor: colors, borderRadius: 8 }] },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+
+            make('chartProviderSuccess', {
+                type: 'bar',
+                data: { labels, datasets: [{ label: '%', data: @Html.Raw(Model.ProviderSuccessRateJson), backgroundColor: colors, borderRadius: 8 }] },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            make('chartProviderUsage', {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data: @Html.Raw(Model.ProviderRequestCountJson), backgroundColor: colors, borderWidth: 0 }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            make('chartCostTrend', {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: 'Chi phí (₫)',
+                        data: @Html.Raw(Model.DailyCostJson),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239,68,68,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+
+            make('chartLatencyTrend', {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: 'ms TB',
+                        data: @Html.Raw(Model.DailyAvgTotalJson),
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14,165,233,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            });
+
+            make('chartSuccessTrend', {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: '% thành công',
+                        data: @Html.Raw(Model.DailySuccessRateJson),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.12)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            make('chartRetrieval', {
+                type: 'doughnut',
+                data: {
+                    labels: @Html.Raw(Model.RetrievalLabelsJson),
+                    datasets: [{ data: @Html.Raw(Model.RetrievalValuesJson), backgroundColor: ['#10b981', '#e5e7eb'], borderWidth: 0 }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            make('chartErrors', {
+                type: 'doughnut',
+                data: {
+                    labels: @Html.Raw(Model.ErrorLabelsJson),
+                    datasets: [{ data: @Html.Raw(Model.ErrorValuesJson), backgroundColor: ['#f59e0b', '#ef4444', '#6366f1', '#94a3b8'], borderWidth: 0 }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+
+            make('chartErrorRate', {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ label: '% lỗi', data: @Html.Raw(Model.ProviderErrorRateJson), backgroundColor: '#ef4444', borderRadius: 8 }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } }
+            });
+
+            make('chartCostByCourse', {
+                type: 'bar',
+                data: {
+                    labels: @Html.Raw(Model.CostByCourseLabelsJson),
+                    datasets: [{ label: 'Chi phí (₫)', data: @Html.Raw(Model.CostByCourseValuesJson), backgroundColor: '#f59e0b', borderRadius: 8 }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        });
+    </script>
+}

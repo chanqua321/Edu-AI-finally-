@@ -1,5 +1,9 @@
 # ĐẶC TẢ MÔN HỌC / HỆ THỐNG EDUAI
 
+> **Đã có bản cập nhật:** xem [`EduAI-Dac-Ta-Nghiep-Vu.md`](./EduAI-Dac-Ta-Nghiep-Vu.md) (v2.0 — 17/07/2026)  
+> gồm đặc tả nghiệp vụ đầy đủ + kết quả quét logic bất ổn.  
+> **17/07/2026:** Các mục Cao/Trung bình trong phần B đã được vá trong code (auth, VNPAY, quota, seed, upload…).
+
 **Môn:** PRN222 — Assignment 2  
 **Tên hệ thống:** EduAI — Chatbot RAG & Quản lý tài liệu  
 **Phiên bản tài liệu:** 1.0  

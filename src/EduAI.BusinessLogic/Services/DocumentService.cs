@@ -12,11 +12,6 @@ namespace EduAI.BusinessLogic.Services;
 
 public class DocumentService : IDocumentService
 {
-    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".pdf", ".docx", ".pptx", ".txt"
-    };
-
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISubjectService _subjectService;
     private readonly IAuditLogService _auditLogService;
@@ -24,6 +19,8 @@ public class DocumentService : IDocumentService
     private readonly INotificationService _notificationService;
     private readonly ISubjectNotificationService _subjectNotificationService;
     private readonly IDocumentIndexingQueue _indexingQueue;
+    private readonly ISystemSettingsService _systemSettingsService;
+    // appsettings: "AppSettings:UploadPath" → thư mục lưu file tài liệu upload trên disk.
     private readonly AppSettings _appSettings;
 
     public DocumentService(
@@ -34,6 +31,7 @@ public class DocumentService : IDocumentService
         INotificationService notificationService,
         ISubjectNotificationService subjectNotificationService,
         IDocumentIndexingQueue indexingQueue,
+        ISystemSettingsService systemSettingsService,
         IOptions<AppSettings> appSettings)
     {
         _unitOfWork = unitOfWork;
@@ -43,6 +41,7 @@ public class DocumentService : IDocumentService
         _notificationService = notificationService;
         _subjectNotificationService = subjectNotificationService;
         _indexingQueue = indexingQueue;
+        _systemSettingsService = systemSettingsService;
         _appSettings = appSettings.Value;
     }
 
@@ -77,14 +76,14 @@ public class DocumentService : IDocumentService
         var document = await _unitOfWork.Documents.GetWithDetailsAsync(id);
         if (document == null) return null;
 
-        if (role == Roles.Teacher && !await _subjectService.IsTeacherAssignedToSubjectAsync(userId, document.SubjectId))
+        if (role == Roles.Teacher && !await _subjectService.CanTeacherAccessSubjectAsync(userId, document.SubjectId))
             return null;
 
-        if (role == Roles.Student)
-            return null;
-
+        // Student xem được thông tin cơ bản tài liệu (không có chunk details).
+        // Chunk details chỉ Admin/Teacher mới xem được qua GetDetailsByIdAsync.
         var dto = MapToDto(document);
-        await EnrichWithChunkStatsAsync(dto, document.Id, role);
+        if (role != Roles.Student)
+            await EnrichWithChunkStatsAsync(dto, document.Id, role);
         return dto;
     }
 
@@ -152,13 +151,47 @@ public class DocumentService : IDocumentService
 
     public async Task<UploadDocumentResultDto> UploadAsync(UploadDocumentDto dto, string? ipAddress)
     {
-        var extension = Path.GetExtension(dto.FileName);
-        if (!AllowedExtensions.Contains(extension))
+        // Kiểm tra quyền TRƯỚC để tránh validate chapter/lesson không cần thiết.
+        var canUpload = dto.UploaderRole == Roles.Admin ||
+            (dto.UploaderRole == Roles.Teacher &&
+             await _subjectService.IsTeacherAssignedToSubjectAsync(dto.UploadedByUserId, dto.SubjectId));
+        if (!canUpload)
         {
             return new UploadDocumentResultDto
             {
                 Success = false,
-                ErrorMessage = "Chỉ hỗ trợ file PDF, DOCX, PPTX và TXT."
+                ErrorMessage = "Bạn chưa được phân công tải tài liệu cho môn học này."
+            };
+        }
+
+        var systemSettings = await _systemSettingsService.GetAsync();
+        var allowedExtensions = UploadFileValidator.ParseExtensions(systemSettings.AllowedFileExtensions);
+        var extension = Path.GetExtension(dto.FileName);
+        if (!UploadFileValidator.IsExtensionAllowed(extension, allowedExtensions))
+        {
+            return new UploadDocumentResultDto
+            {
+                Success = false,
+                ErrorMessage = $"Chỉ hỗ trợ các đuôi file: {systemSettings.AllowedFileExtensions}."
+            };
+        }
+
+        if (!UploadFileValidator.MatchesDeclaredContentType(extension, dto.ContentType))
+        {
+            return new UploadDocumentResultDto
+            {
+                Success = false,
+                ErrorMessage = "Loại MIME của file không khớp với phần mở rộng."
+            };
+        }
+
+        dto.FileStream.Position = 0;
+        if (!UploadFileValidator.HasValidMagicNumber(dto.FileStream, extension))
+        {
+            return new UploadDocumentResultDto
+            {
+                Success = false,
+                ErrorMessage = "Nội dung file không hợp lệ hoặc không khớp định dạng."
             };
         }
 
@@ -179,17 +212,7 @@ public class DocumentService : IDocumentService
             return new UploadDocumentResultDto { Success = false, ErrorMessage = "Bài học không hợp lệ hoặc không thuộc chương đã chọn." };
         }
 
-        if (dto.UploaderRole != Roles.Teacher ||
-            !await _subjectService.IsTeacherAssignedToSubjectAsync(dto.UploadedByUserId, dto.SubjectId))
-        {
-            return new UploadDocumentResultDto
-            {
-                Success = false,
-                ErrorMessage = "Bạn chưa được phân công tải tài liệu cho môn học này."
-            };
-        }
-
-        var maxBytes = _appSettings.MaxUploadBytes;
+        var maxBytes = systemSettings.MaxUploadFileSizeBytes;
         if (dto.FileSizeBytes <= 0 || dto.FileSizeBytes > maxBytes)
         {
             return new UploadDocumentResultDto
@@ -210,6 +233,7 @@ public class DocumentService : IDocumentService
             };
         }
 
+        // appsettings: "AppSettings:UploadPath" → lưu file upload vào thư mục này trên disk.
         var uploadRoot = DocumentPathHelper.ResolveUploadRoot(_appSettings.UploadPath);
         var subjectFolder = Path.Combine(uploadRoot, dto.SubjectId.ToString(), dto.ChapterId.ToString(), dto.LessonId.ToString());
         Directory.CreateDirectory(subjectFolder);
@@ -320,15 +344,25 @@ public class DocumentService : IDocumentService
         var fileReplaced = false;
         if (dto.NewFileStream != null && dto.NewFileSizeBytes > 0)
         {
+            var systemSettings = await _systemSettingsService.GetAsync();
+            var allowedExtensions = UploadFileValidator.ParseExtensions(systemSettings.AllowedFileExtensions);
             var newExtension = Path.GetExtension(dto.NewFileOriginalName ?? string.Empty);
-            if (!AllowedExtensions.Contains(newExtension))
-                return DocFail("Chỉ hỗ trợ file PDF, DOCX, PPTX và TXT.");
+            if (!UploadFileValidator.IsExtensionAllowed(newExtension, allowedExtensions))
+                return DocFail($"Chỉ hỗ trợ các đuôi file: {systemSettings.AllowedFileExtensions}.");
 
-            var maxBytes = _appSettings.MaxUploadBytes;
+            if (!UploadFileValidator.MatchesDeclaredContentType(newExtension, null))
+                return DocFail("Loại MIME của file không khớp với phần mở rộng.");
+
+            dto.NewFileStream.Position = 0;
+            if (!UploadFileValidator.HasValidMagicNumber(dto.NewFileStream, newExtension))
+                return DocFail("Nội dung file không hợp lệ hoặc không khớp định dạng.");
+
+            var maxBytes = systemSettings.MaxUploadFileSizeBytes;
             if (dto.NewFileSizeBytes > maxBytes)
                 return DocFail($"Kích thước file không được vượt quá {maxBytes / (1024 * 1024)} MB.");
 
-            var uploadRoot = DocumentPathHelper.ResolveUploadRoot(_appSettings.UploadPath);
+            // appsettings: "AppSettings:UploadPath" → lưu file upload vào thư mục này trên disk.
+        var uploadRoot = DocumentPathHelper.ResolveUploadRoot(_appSettings.UploadPath);
             var folder = Path.Combine(uploadRoot, document.SubjectId.ToString(), document.ChapterId.ToString(), document.LessonId.ToString());
             Directory.CreateDirectory(folder);
 
@@ -590,7 +624,8 @@ public class DocumentService : IDocumentService
     };
 
     private static bool CanManageDocument(Document document, string userId, string role) =>
-        role == Roles.Teacher && document.Subject?.TeacherId == userId;
+        role == Roles.Admin ||
+        (role == Roles.Teacher && document.Subject?.TeacherId == userId);
 
     private static DocumentOperationResultDto DocFail(string message) =>
         new() { Success = false, ErrorMessage = message };

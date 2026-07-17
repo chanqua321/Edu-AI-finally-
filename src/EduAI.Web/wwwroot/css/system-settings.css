@@ -1,0 +1,233 @@
+/* Admin System Configuration dashboard */
+.sys-config {
+  --sys-nav-width: 260px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.sys-config-header {
+  margin-bottom: 1.75rem;
+}
+
+.sys-config-header .page-title {
+  margin-bottom: 0.35rem;
+}
+
+.sys-config-layout {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.sys-config-sidebar {
+  flex: 0 0 var(--sys-nav-width);
+  position: sticky;
+  top: 1rem;
+}
+
+.sys-config-nav-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.5rem;
+}
+
+.sys-config-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sys-config-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sys-config-nav .nav-link:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sys-config-nav .nav-link.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.sys-config-nav .nav-link i {
+  font-size: 1.1rem;
+  width: 1.25rem;
+  text-align: center;
+}
+
+.sys-config-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.sys-config-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.75rem;
+}
+
+.sys-config-panel-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+}
+
+.sys-config-panel-desc {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.sys-field {
+  margin-bottom: 1.35rem;
+}
+
+.sys-field label.form-label {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--text);
+}
+
+.sys-field .form-text {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.sys-field .invalid-feedback {
+  display: block;
+}
+
+.sys-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgba(184, 228, 255, 0.45);
+}
+
+.sys-toggle-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.sys-toggle-label {
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.sys-toggle-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.sys-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(184, 228, 255, 0.45);
+}
+
+.sys-meta-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px dashed rgba(184, 228, 255, 0.6);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.sys-packages-table {
+  margin-bottom: 0;
+}
+
+.sys-packages-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  font-weight: 600;
+  border-bottom-width: 1px;
+}
+
+.sys-packages-table td {
+  vertical-align: middle;
+}
+
+.sys-badge-active {
+  background: rgba(22, 163, 74, 0.12);
+  color: var(--success);
+}
+
+.sys-badge-inactive {
+  background: rgba(91, 127, 153, 0.15);
+  color: var(--text-muted);
+}
+
+.sys-mobile-nav-btn {
+  display: none;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 991.98px) {
+  .sys-config-layout {
+    flex-direction: column;
+  }
+
+  .sys-config-sidebar {
+    display: none;
+  }
+
+  .sys-mobile-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.sys-offcanvas-nav .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-decoration: none;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.sys-offcanvas-nav .nav-link.active {
+  background: var(--surface-2);
+  color: var(--primary);
+}

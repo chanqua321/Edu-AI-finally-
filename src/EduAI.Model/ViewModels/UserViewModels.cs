@@ -17,6 +17,15 @@ public class UserCreateViewModel
 
     [Required]
     public string Role { get; set; } = string.Empty;
+
+    [Required, MinLength(8), DataType(DataType.Password), Display(Name = "Password")]
+    [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$",
+        ErrorMessage = "Password must include at least one uppercase letter, one lowercase letter, and one digit.")]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password), Display(Name = "Confirm Password")]
+    [Compare(nameof(Password), ErrorMessage = "Confirm password does not match.")]
+    public string ConfirmPassword { get; set; } = string.Empty;
 }
 
 public class UserDetailsViewModel

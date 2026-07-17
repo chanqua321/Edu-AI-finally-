@@ -20,6 +20,8 @@ public class UserManagementService : IUserManagementService
     private readonly IAuditLogService _auditLogService;
     private readonly INotificationService _notificationService;
     private readonly IUserNotificationService _userNotificationService;
+    private readonly IPaymentService _paymentService;
+    // appsettings: "AppSettings:LoginUrl" / "AppBaseUrl" → link đăng nhập gửi trong email tạo tài khoản.
     private readonly AppSettings _appSettings;
 
     public UserManagementService(
@@ -29,6 +31,7 @@ public class UserManagementService : IUserManagementService
         IAuditLogService auditLogService,
         INotificationService notificationService,
         IUserNotificationService userNotificationService,
+        IPaymentService paymentService,
         IOptions<AppSettings> appSettings)
     {
         _userManager = userManager;
@@ -37,6 +40,7 @@ public class UserManagementService : IUserManagementService
         _auditLogService = auditLogService;
         _notificationService = notificationService;
         _userNotificationService = userNotificationService;
+        _paymentService = paymentService;
         _appSettings = appSettings.Value;
     }
 
@@ -86,8 +90,10 @@ public class UserManagementService : IUserManagementService
             return new CreateUserResultDto { Success = false, ErrorMessage = "Tên đăng nhập đã tồn tại." };
         }
 
-        var password = PasswordHelper.GenerateTemporaryPassword();
-        var passwordWasGenerated = true;
+        var password = string.IsNullOrWhiteSpace(dto.Password)
+            ? PasswordHelper.GenerateTemporaryPassword()
+            : dto.Password.Trim();
+        var passwordWasGenerated = string.IsNullOrWhiteSpace(dto.Password);
         var isTeacher = dto.Role == Roles.Teacher;
         var isStudent = dto.Role == Roles.Student;
 
@@ -96,7 +102,7 @@ public class UserManagementService : IUserManagementService
             FullName = dto.FullName.Trim(),
             Email = email,
             UserName = userName,
-            EmailConfirmed = !isTeacher,
+            EmailConfirmed = !isTeacher || EmailService.DisabledForTesting,
             IsActive = true,
             MustChangePassword = true
         };
@@ -129,39 +135,52 @@ public class UserManagementService : IUserManagementService
         });
 
         var emailSent = false;
-        var loginUrl = ResolveLoginUrl();
-
-        if (isTeacher)
+        if (!EmailService.DisabledForTesting)
         {
-            var confirmationUrl = await BuildEmailConfirmationUrlAsync(user);
-            emailSent = await _emailService.SendTeacherAccountEmailAsync(
-                user.Email!, user.FullName, user.Email!, password, loginUrl, confirmationUrl);
+            var loginUrl = ResolveLoginUrl();
 
-            if (!emailSent)
+            if (isTeacher)
             {
-                await _auditLogService.LogAsync(new CreateAuditLogDto
+                var confirmationUrl = await BuildEmailConfirmationUrlAsync(user);
+                emailSent = await _emailService.SendTeacherAccountEmailAsync(
+                    user.Email!, user.FullName, user.Email!, password, loginUrl, confirmationUrl);
+
+                if (!emailSent)
                 {
-                    UserId = adminId,
-                    Action = AuditActions.EmailSendFailed,
-                    IpAddress = ipAddress,
-                    Details = $"Failed to send teacher welcome/confirmation email to {user.Email}"
-                });
+                    await _auditLogService.LogAsync(new CreateAuditLogDto
+                    {
+                        UserId = adminId,
+                        Action = AuditActions.EmailSendFailed,
+                        IpAddress = ipAddress,
+                        Details = $"Failed to send teacher welcome/confirmation email to {user.Email}"
+                    });
+                }
+            }
+            else if (isStudent)
+            {
+                emailSent = await _emailService.SendStudentAccountEmailAsync(
+                    user.Email!, user.FullName, user.Email!, password, loginUrl);
+
+                if (!emailSent)
+                {
+                    await _auditLogService.LogAsync(new CreateAuditLogDto
+                    {
+                        UserId = adminId,
+                        Action = AuditActions.EmailSendFailed,
+                        IpAddress = ipAddress,
+                        Details = $"Failed to send student welcome email to {user.Email}"
+                    });
+                }
             }
         }
-        else if (isStudent)
-        {
-            emailSent = await _emailService.SendStudentAccountEmailAsync(
-                user.Email!, user.FullName, user.Email!, password, loginUrl);
 
-            if (!emailSent)
+        if (isStudent)
+        {
+            var activeSub = await _paymentService.GetActiveSubscriptionAsync(user.Id);
+            if (activeSub == null)
             {
-                await _auditLogService.LogAsync(new CreateAuditLogDto
-                {
-                    UserId = adminId,
-                    Action = AuditActions.EmailSendFailed,
-                    IpAddress = ipAddress,
-                    Details = $"Failed to send student welcome email to {user.Email}"
-                });
+                var txn = await _paymentService.CreateTransactionAsync(user.Id, PaymentPackageIds.Free, 0);
+                await _paymentService.CompleteTransactionAsync(txn.Id, "FREE_ADMIN_CREATE", TransactionStatus.Success);
             }
         }
 
@@ -677,6 +696,7 @@ public class UserManagementService : IUserManagementService
 
     private string ResolveAppBaseUrl()
     {
+        // appsettings: "AppSettings:AppBaseUrl" → domain gốc dùng dựng link xác thực email / đăng nhập.
         if (!string.IsNullOrWhiteSpace(_appSettings.AppBaseUrl))
             return _appSettings.AppBaseUrl.TrimEnd('/');
 

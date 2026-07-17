@@ -15,9 +15,19 @@ public class ChatSessionViewModel
     public string SubjectName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public IReadOnlyList<DTOs.ChatMessageDto> Messages { get; set; } = Array.Empty<DTOs.ChatMessageDto>();
+    public DTOs.AiProviderQuotaOverviewDto ProviderQuotaOverview { get; set; } = new();
+    public string DefaultProviderId { get; set; } = string.Empty;
+    /// <summary>Tài liệu đã index — dùng để lọc RAG theo 1 file.</summary>
+    public IReadOnlyList<ChatDocumentOptionViewModel> Documents { get; set; } = Array.Empty<ChatDocumentOptionViewModel>();
 
     [Required, StringLength(2000)]
     public string Question { get; set; } = string.Empty;
+}
+
+public class ChatDocumentOptionViewModel
+{
+    public int Id { get; set; }
+    public string FileName { get; set; } = string.Empty;
 }
 
 public class ChatCreateSessionViewModel

@@ -33,6 +33,22 @@ public class SendChatMessageDto
     public string StudentId { get; set; } = string.Empty;
     public int SubjectId { get; set; }
     public string Question { get; set; } = string.Empty;
+    public string? ProviderId { get; set; }
+    /// <summary>Optional: chỉ retrieve chunk từ tài liệu này.</summary>
+    public int? DocumentId { get; set; }
+    /// <summary>Override AiUsageLog.Operation (e.g. Warmup). Default GenerateAnswer.</summary>
+    public string? UsageOperation { get; set; }
+}
+
+public class ChatUsedChunkDto
+{
+    public int ChunkId { get; set; }
+    public int DocumentId { get; set; }
+    public string DocumentFileName { get; set; } = string.Empty;
+    public string? ChapterName { get; set; }
+    public int ChunkIndex { get; set; }
+    public float RelevanceScore { get; set; }
+    public string Preview { get; set; } = string.Empty;
 }
 
 public class ChatResponseDto
@@ -41,6 +57,16 @@ public class ChatResponseDto
     public string Answer { get; set; } = string.Empty;
     public string? Citations { get; set; }
     public string? ErrorMessage { get; set; }
+    public IReadOnlyList<ChatUsedChunkDto> UsedChunks { get; set; } = Array.Empty<ChatUsedChunkDto>();
+    public int? PromptTokens { get; set; }
+    public int? CompletionTokens { get; set; }
+    public int? TotalTokens { get; set; }
+    public string? ProviderId { get; set; }
+    public string? ProviderName { get; set; }
+    public ProviderQuotaCheckResult? Quota { get; set; }
+    public string? FallbackProviderId { get; set; }
+    public string? FallbackProviderName { get; set; }
+    public ProviderQuotaCheckResult? FallbackQuota { get; set; }
 }
 
 public class CreateChatSessionDto
